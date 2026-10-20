@@ -1,0 +1,127 @@
+{
+  "name": "WASP Engine - Daily Critical Escalation Alert (Google Chat & Gmail)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "Schedule (9:00 AM Weekdays)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/databases/3fff1bcff9b881be9e4fd3df8f014a52/query",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"filter\": {\n    \"and\": [\n      {\n        \"property\": \"Status\",\n        \"status\": {\n          \"does_not_equal\": \"Done\"\n        }\n      },\n      {\n        \"or\": [\n          {\n            \"property\": \"Priority Score\",\n            \"formula\": {\n              \"number\": {\n                \"greater_than_or_equal_to\": 250\n              }\n            }\n          },\n          {\n            \"property\": \"Priority\",\n            \"select\": {\n              \"equals\": \"P1 - Urgent\"\n            }\n          }\n        ]\n      }\n    ]\n  },\n  \"sorts\": [\n    {\n      \"property\": \"Priority Score\",\n      \"direction\": \"descending\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Query WASP Critical Tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.first().json.results || [];\n\nif (items.length === 0) {\n  return [];\n}\n\nlet taskCards = [];\nlet emailList = [];\n\nfor (const item of items) {\n  const props = item.properties || {};\n  const title = (props['Task Name']?.title || []).map(t => t.plain_text).join('') || 'Untitled Task';\n  const priority = props['Priority']?.select?.name || 'P2 - High';\n  const score = props['Priority Score']?.formula?.number || 0;\n  const escalation = props['Escalation Level']?.formula?.string || '⚠️ ELEVATED';\n  const dueDate = props['Due Date']?.date?.start || 'No date set';\n  const endDate = props['End Date']?.date?.start || dueDate;\n  const url = item.url || `https://notion.so/${item.id.replace(/-/g, '')}`;\n  const team = props['Team / Pod']?.select?.name || 'General';\n  const complexity = props['Complexity']?.select?.name || '⭐ 3';\n  \n  taskCards.push({\n    title,\n    priority,\n    score,\n    escalation,\n    dueDate,\n    endDate,\n    team,\n    complexity,\n    url\n  });\n\n  emailList.push(`• [${priority}] <b>${title}</b> (Score: ${score} | Sizing: ${complexity}) | Pod: ${team} | Target End: ${endDate} — <a href=\"${url}\">Open in Notion</a>`);\n}\n\n// Construct Google Chat Card v2 Payload\nconst widgets = [\n  {\n    textParagraph: {\n      text: `<b>🚨 Action Required:</b> Detected <b>${taskCards.length} critical / high-urgency tasks</b> requiring team attention today.`\n    }\n  }\n];\n\nfor (const t of taskCards.slice(0, 5)) {\n  widgets.push({\n    decoratedText: {\n      topLabel: `${t.escalation} | ${t.priority} (Score: ${t.score})`,\n      text: `<b>${t.title}</b>`,\n      bottomLabel: `Team: ${t.team} | Complexity: ${t.complexity} | Cutoff: ${t.endDate}`,\n      button: {\n        text: 'OPEN TASK',\n        onClick: {\n          openLink: {\n            url: t.url\n          }\n        }\n      }\n    }\n  });\n}\n\nconst googleChatPayload = {\n  cardsV2: [\n    {\n      cardId: 'wasp_critical_escalations_' + Date.now(),\n      card: {\n        header: {\n          title: '🐝 WASP Engine — Critical Escalation Alert',\n          subtitle: `${taskCards.length} Tasks Exceeding Urgency Threshold`,\n          imageUrl: 'https://cdn-icons-png.flaticon.com/512/564/564619.png',\n          imageType: 'CIRCLE'\n        },\n        sections: [\n          {\n            header: 'Top Escalated & High-Urgency Deliverables',\n            widgets: widgets\n          }\n        ]\n      }\n    }\n  ]\n};\n\nconst emailHtml = `\n<h2>🐝 WASP Engine: Daily Escalation Report</h2>\n<p>There are <b>${taskCards.length} high-urgency or overdue tasks</b> in your WASP Dashboard today:</p>\n<ul>\n  ${emailList.join('<br>')}\n</ul>\n<p><a href=\"https://app.notion.com/p/WASP-Dashboard-Work-Analysis-System-Profile-Dashboard-3fff1bcff9b88188b004f044be8090fe\" style=\"background:#2383e2;color:#fff;padding:8px 16px;text-decoration:none;border-radius:4px;font-weight:bold;\">Open WASP Dashboard</a></p>\n`;\n\nreturn [{\n  json: {\n    count: taskCards.length,\n    googleChatPayload,\n    emailHtml,\n    subject: `🚨 [WASP] ${taskCards.length} Critical Tasks Require Immediate Action Today`\n  }\n}];"
+      },
+      "id": "3",
+      "name": "Format WASP Card & Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.GOOGLE_CHAT_WEBHOOK_URL || 'https://chat.googleapis.com/v1/spaces/YOUR_SPACE/messages?key=YOUR_KEY' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.googleChatPayload) }}",
+        "options": {}
+      },
+      "id": "4",
+      "name": "Post Alert to Google Chat Space",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "toEmail": "={{ $env.ADMIN_WORKSPACE_EMAIL || 'diviyanshmodi@gcmconventschool.in' }}",
+        "subject": "={{ $json.subject }}",
+        "html": "={{ $json.emailHtml }}"
+      },
+      "id": "5",
+      "name": "Send Alert via Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [900, 400]
+    }
+  ],
+  "connections": {
+    "Schedule (9:00 AM Weekdays)": {
+      "main": [
+        [
+          {
+            "node": "Query WASP Critical Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query WASP Critical Tasks": {
+      "main": [
+        [
+          {
+            "node": "Format WASP Card & Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format WASP Card & Email": {
+      "main": [
+        [
+          {
+            "node": "Post Alert to Google Chat Space",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Alert via Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}

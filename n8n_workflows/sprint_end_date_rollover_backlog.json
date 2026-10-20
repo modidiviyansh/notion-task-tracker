@@ -1,0 +1,168 @@
+{
+  "name": "WASP Engine - Sprint End Date Rollover & Backlog Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "Schedule (Weekly Sunday Midnight)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/databases/3fff1bcff9b881be9e4fd3df8f014a52/query",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"filter\": {\n    \"and\": [\n      {\n        \"property\": \"Status\",\n        \"status\": {\n          \"does_not_equal\": \"Done\"\n        }\n      },\n      {\n        \"property\": \"Status\",\n        \"status\": {\n          \"does_not_equal\": \"Archived\"\n        }\n      },\n      {\n        \"property\": \"End Date\",\n        \"date\": {\n          \"before\": \"{{ $now.format('YYYY-MM-DD') }}\"\n        }\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Find Tasks Past End Date",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.first().json.results || [];\nif (results.length === 0) {\n  return [];\n}\n\nreturn results.map(item => ({\n  json: {\n    page_id: item.id,\n    title: (item.properties['Task Name']?.title || []).map(t => t.plain_text).join('') || 'Untitled',\n    priority: item.properties['Priority']?.select?.name || 'P3 - Medium',\n    complexity: item.properties['Complexity']?.select?.name || '⭐ 3',\n    endDate: item.properties['End Date']?.date?.start || 'Past'\n  }\n}));"
+      },
+      "id": "3",
+      "name": "Split Lapsed Tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/pages/{{ $json.page_id.replace(/-/g, '') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"properties\": {\n    \"Original Backlog Item\": {\n      \"checkbox\": true\n    },\n    \"Status\": {\n      \"status\": {\n        \"name\": \"Backlog\"\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "4",
+      "name": "Roll Over Task to Backlog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rolledOver = $input.all();\nconst count = rolledOver.length;\n\nconst widgets = [\n  {\n    textParagraph: {\n      text: `<b>Sprint Cutoff Reached:</b> <b>${count} tasks</b> missed their End Date cutoff and have been automatically rolled over into <b>Backlog Debt</b> for sprint triage.`\n    }\n  }\n];\n\nfor (const item of rolledOver.slice(0, 5)) {\n  widgets.push({\n    decoratedText: {\n      topLabel: `Rolled-Over Debt | End Date: ${item.json.endDate}`,\n      text: `• <b>${item.json.title}</b> (${item.json.priority} | ${item.json.complexity})`\n    }\n  });\n}\n\nwidgets.push({\n  buttonList: {\n    buttons: [\n      {\n        text: 'OPEN WASP DASHBOARD',\n        onClick: {\n          openLink: {\n            url: 'https://app.notion.com/p/WASP-Dashboard-Work-Analysis-System-Profile-Dashboard-3fff1bcff9b88188b004f044be8090fe'\n          }\n        }\n      }\n    ]\n  }\n});\n\nconst googleChatPayload = {\n  cardsV2: [\n    {\n      cardId: 'wasp_sprint_rollover_' + Date.now(),\n      card: {\n        header: {\n          title: '🐝 WASP Engine — Sprint Backlog Rollover',\n          subtitle: `${count} Incomplete Tasks Converted to Backlog Debt`,\n          imageUrl: 'https://cdn-icons-png.flaticon.com/512/3281/3281307.png',\n          imageType: 'CIRCLE'\n        },\n        sections: [\n          {\n            header: 'Rolled-Over Backlog Debt Summary',\n            widgets: widgets\n          }\n        ]\n      }\n    }\n  ]\n};\n\nreturn [{\n  json: {\n    count,\n    googleChatPayload\n  }\n}];"
+      },
+      "id": "5",
+      "name": "Summarize Rollover for Team",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.GOOGLE_CHAT_WEBHOOK_URL || 'https://chat.googleapis.com/v1/spaces/YOUR_SPACE/messages?key=YOUR_KEY' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.googleChatPayload) }}",
+        "options": {}
+      },
+      "id": "6",
+      "name": "Notify Google Chat Space",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 300]
+    }
+  ],
+  "connections": {
+    "Schedule (Weekly Sunday Midnight)": {
+      "main": [
+        [
+          {
+            "node": "Find Tasks Past End Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Tasks Past End Date": {
+      "main": [
+        [
+          {
+            "node": "Split Lapsed Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Lapsed Tasks": {
+      "main": [
+        [
+          {
+            "node": "Roll Over Task to Backlog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Roll Over Task to Backlog": {
+      "main": [
+        [
+          {
+            "node": "Summarize Rollover for Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Rollover for Team": {
+      "main": [
+        [
+          {
+            "node": "Notify Google Chat Space",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}

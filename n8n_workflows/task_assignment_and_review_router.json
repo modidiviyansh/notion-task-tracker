@@ -1,0 +1,110 @@
+{
+  "name": "WASP Engine - Task Assignment & Review Router (Google Chat & Gmail)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "Poll Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/databases/3fff1bcff9b881be9e4fd3df8f014a52/query",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"filter\": {\n    \"or\": [\n      {\n        \"property\": \"Status\",\n        \"status\": {\n          \"equals\": \"In Review\"\n        }\n      },\n      {\n        \"property\": \"Action Required By\",\n        \"select\": {\n          \"equals\": \"Reviewer (Code/Spec Review)\"\n        }\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Find Tasks Awaiting Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.first().json.results || [];\nif (items.length === 0) return [];\n\nconst widgets = [\n  {\n    textParagraph: {\n      text: `<b>👀 Peer Review Attention Required:</b> <b>${items.length} tasks</b> are in flight awaiting specification, code, or design review signoff.`\n    }\n  }\n];\n\nfor (const it of items.slice(0, 5)) {\n  const props = it.properties || {};\n  const title = (props['Task Name']?.title || []).map(t => t.plain_text).join('') || 'Untitled';\n  const priority = props['Priority']?.select?.name || 'P3 - Medium';\n  const complexity = props['Complexity']?.select?.name || '⭐ 3';\n  const team = props['Team / Pod']?.select?.name || 'Engineering';\n  const url = it.url || `https://notion.so/${it.id.replace(/-/g, '')}`;\n  \n  widgets.push({\n    decoratedText: {\n      topLabel: `In Review | ${priority} (${complexity})`,\n      text: `<b>${title}</b>`,\n      bottomLabel: `Pod: ${team}`,\n      button: {\n        text: 'REVIEW TASK',\n        onClick: {\n          openLink: {\n            url\n          }\n        }\n      }\n    }\n  });\n}\n\nconst googleChatPayload = {\n  cardsV2: [\n    {\n      cardId: 'wasp_review_queue_' + Date.now(),\n      card: {\n        header: {\n          title: '🐝 WASP Engine — Peer Review Queue',\n          subtitle: `${items.length} Deliverables Awaiting Signoff`,\n          imageUrl: 'https://cdn-icons-png.flaticon.com/512/1006/1006771.png',\n          imageType: 'CIRCLE'\n        },\n        sections: [\n          {\n            header: 'Tasks in Peer Review Pipeline',\n            widgets\n          }\n        ]\n      }\n    }\n  ]\n};\n\nreturn [{\n  json: {\n    count: items.length,\n    googleChatPayload\n  }\n}];"
+      },
+      "id": "3",
+      "name": "Format Review Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.GOOGLE_CHAT_WEBHOOK_URL || 'https://chat.googleapis.com/v1/spaces/YOUR_SPACE/messages?key=YOUR_KEY' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.googleChatPayload) }}",
+        "options": {}
+      },
+      "id": "4",
+      "name": "Post to Google Chat Space",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Poll Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Find Tasks Awaiting Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Tasks Awaiting Review": {
+      "main": [
+        [
+          {
+            "node": "Format Review Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Review Notification": {
+      "main": [
+        [
+          {
+            "node": "Post to Google Chat Space",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}

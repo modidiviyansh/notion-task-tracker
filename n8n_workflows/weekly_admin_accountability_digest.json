@@ -1,0 +1,124 @@
+{
+  "name": "WASP Engine - Weekly Admin Accountability Digest (Google Chat & Gmail)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 17 * * 5"
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "Schedule (Friday 5:00 PM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/databases/3fff1bcff9b881be9e4fd3df8f014a52/query",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2",
+      "name": "Query All WASP Tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.first().json.results || [];\n\nconst now = new Date();\nconst t7d = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));\nconst t15d = new Date(now.getTime() - (15 * 24 * 60 * 60 * 1000));\nconst t30d = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));\n\nlet total = items.length;\nlet active = 0;\nlet completed = 0;\nlet completed7d = 0;\nlet completed15d = 0;\nlet completed30d = 0;\nlet backlogConquered = 0;\nlet backlogActive = 0;\nlet unassigned = 0;\nlet inReview = 0;\nlet earnedWeight = 0;\nlet totalWeight = 0;\nlet podDistribution = {};\n\nconst priorityWeights = {'P1 - Urgent': 500, 'P2 - High': 250, 'P3 - Medium': 100, 'P4 - Low': 25};\n\nfor (const item of items) {\n  const props = item.properties || {};\n  const status = props['Status']?.status?.name || 'To Do';\n  const isDone = (status === 'Done' || status === 'Archived');\n  const bState = props['Backlog State']?.formula?.string || '';\n  const assignees = props['Assignee']?.people || [];\n  const pod = props['Team / Pod']?.select?.name || 'General';\n  const priority = props['Priority']?.select?.name || 'P3 - Medium';\n  const compStr = props['Complexity']?.select?.name || '3';\n  const stars = parseInt(compStr.replace(/[^0-9]/g, '') || '3', 10);\n  const taskWeight = (priorityWeights[priority] || 100) * stars;\n  \n  totalWeight += taskWeight;\n  \n  if (isDone) {\n    completed++;\n    earnedWeight += taskWeight;\n    if (bState === '🏆 Conquered Backlog Debt' || props['Original Backlog Item']?.checkbox === true) {\n      backlogConquered++;\n    }\n    \n    const compDateStr = props['Completed At']?.date?.start;\n    if (compDateStr) {\n      const compDate = new Date(compDateStr);\n      if (compDate >= t7d) completed7d++;\n      if (compDate >= t15d) completed15d++;\n      if (compDate >= t30d) completed30d++;\n    } else {\n      completed7d++;\n      completed15d++;\n      completed30d++;\n    }\n  } else {\n    active++;\n    if (bState === '⚠️ Rolled-Over Backlog Debt' || status === 'Backlog') backlogActive++;\n    if (assignees.length === 0) unassigned++;\n    if (status === 'In Review') inReview++;\n    podDistribution[pod] = (podDistribution[pod] || 0) + 1;\n  }\n}\n\nconst completionRate = total > 0 ? ((completed / total) * 100).toFixed(1) : 0;\nconst waspScore = total > 0 ? Math.min(100, Math.round((earnedWeight / (totalWeight || 1)) * 65 + (completed / total) * 35)) : 100;\n\n// Build Google Chat Card v2 Payload\nconst googleChatPayload = {\n  cardsV2: [\n    {\n      cardId: 'wasp_admin_weekly_digest_' + Date.now(),\n      card: {\n        header: {\n          title: '🐝 WASP Engine — Weekly Executive Digest',\n          subtitle: `Sprint Velocity & Profile Accountability Recap (${now.toISOString().split('T')[0]})`,\n          imageUrl: 'https://cdn-icons-png.flaticon.com/512/1828/1828884.png',\n          imageType: 'CIRCLE'\n        },\n        sections: [\n          {\n            header: '⚡ Multi-Horizon Throughput & WASP Index',\n            widgets: [\n              {\n                decoratedText: {\n                  topLabel: 'WASP Performance Index',\n                  text: `<b>${waspScore} / 100 Points</b>`,\n                  bottomLabel: `${earnedWeight} / ${totalWeight} Weighted Priority Pts`\n                }\n              },\n              {\n                decoratedText: {\n                  topLabel: '7-Day Sprint Output',\n                  text: `<b>${completed7d} Tasks Delivered</b>`,\n                  bottomLabel: 'Sprint velocity output'\n                }\n              },\n              {\n                decoratedText: {\n                  topLabel: '15-Day Mid-Cycle & Monthly',\n                  text: `<b>15d: ${completed15d} | 30d: ${completed30d} Tasks</b>`,\n                  bottomLabel: `Total Conquered: ${completed}/${total} (${completionRate}%)`\n                }\n              }\n            ]\n          },\n          {\n            header: '🏆 Backlog Analytics & Team Capacity',\n            widgets: [\n              {\n                decoratedText: {\n                  topLabel: 'Conquered Backlog Debt',\n                  text: `<b>${backlogConquered} Debt Items Cleared</b>`,\n                  bottomLabel: `Active Rollover Debt: ${backlogActive}`\n                }\n              },\n              {\n                decoratedText: {\n                  topLabel: 'Active Workload & In Review',\n                  text: `<b>${active - unassigned} Assigned | ${unassigned} Open Pool</b>`,\n                  bottomLabel: `In Peer Review: ${inReview}`\n                }\n              },\n              {\n                buttonList: {\n                  buttons: [\n                    {\n                      text: 'OPEN WASP DASHBOARD',\n                      onClick: {\n                        openLink: {\n                          url: 'https://app.notion.com/p/WASP-Dashboard-Work-Analysis-System-Profile-Dashboard-3fff1bcff9b88188b004f044be8090fe'\n                        }\n                      }\n                    }\n                  ]\n                }\n              }\n            ]\n          }\n        ]\n      }\n    }\n  ]\n};\n\nconst emailHtml = `\n<h2>🐝 WASP Engine: Weekly Executive Digest</h2>\n<p><b>Executive Recap for week ending ${now.toDateString()}:</b></p>\n<table border=\"1\" cellpadding=\"8\" style=\"border-collapse:collapse;width:100%;font-family:sans-serif;\">\n  <tr style=\"background:#f3f4f6;\"><th>WASP Dimension</th><th>Metric Value</th><th>Operational Context</th></tr>\n  <tr><td>🐝 <b>WASP Performance Index</b></td><td><b>${waspScore} / 100 Pts</b></td><td>Weighted Priority & Velocity score</td></tr>\n  <tr><td>⚡ <b>7-Day Sprint Output</b></td><td><b>${completed7d} Tasks</b></td><td>Immediate sprint delivery pace</td></tr>\n  <tr><td>🗓️ <b>15-Day Mid-Cycle</b></td><td><b>${completed15d} Tasks</b></td><td>Bi-weekly velocity trajectory</td></tr>\n  <tr><td>📈 <b>Monthly Throughput</b></td><td><b>${completed30d} Tasks</b></td><td>30-day cumulative execution</td></tr>\n  <tr><td>🏆 <b>Conquered Backlog Debt</b></td><td><b>${backlogConquered} Items</b></td><td>Legacy technical debt paid down</td></tr>\n  <tr><td>⚠️ <b>Rolled-Over Backlog Debt</b></td><td><b>${backlogActive} Items</b></td><td>Tasks that missed target End Dates</td></tr>\n  <tr><td>👥 <b>Team Workload</b></td><td>${active - unassigned} Assigned / ${unassigned} Open</td><td>${inReview} in peer review</td></tr>\n</table>\n<p><a href=\"https://app.notion.com/p/WASP-Dashboard-Work-Analysis-System-Profile-Dashboard-3fff1bcff9b88188b004f044be8090fe\" style=\"background:#2383e2;color:#fff;padding:8px 16px;text-decoration:none;border-radius:4px;font-weight:bold;\">Open Live WASP Dashboard</a></p>\n`;\n\nreturn [{\n  json: {\n    waspScore,\n    completed7d,\n    completed15d,\n    completed30d,\n    backlogConquered,\n    googleChatPayload,\n    emailHtml\n  }\n}];"
+      },
+      "id": "3",
+      "name": "Compute WASP Executive Digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.GOOGLE_CHAT_WEBHOOK_URL || 'https://chat.googleapis.com/v1/spaces/YOUR_SPACE/messages?key=YOUR_KEY' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.googleChatPayload) }}",
+        "options": {}
+      },
+      "id": "4",
+      "name": "Post Digest to Google Chat Space",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "toEmail": "={{ $env.ADMIN_WORKSPACE_EMAIL || 'diviyanshmodi@gcmconventschool.in' }}",
+        "subject": "=🐝 [WASP] Weekly Executive Digest: {{ $json.completed7d }} Tasks Delivered (Score: {{ $json.waspScore }}/100)",
+        "html": "={{ $json.emailHtml }}"
+      },
+      "id": "5",
+      "name": "Send Digest via Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [900, 400]
+    }
+  ],
+  "connections": {
+    "Schedule (Friday 5:00 PM)": {
+      "main": [
+        [
+          {
+            "node": "Query All WASP Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query All WASP Tasks": {
+      "main": [
+        [
+          {
+            "node": "Compute WASP Executive Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute WASP Executive Digest": {
+      "main": [
+        [
+          {
+            "node": "Post Digest to Google Chat Space",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Digest via Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}

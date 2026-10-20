@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WASP Engine — Real-Time Task Tracker & Analytics Dashboard</title>
+  <meta name="description" content="Live Notion Task Analytics, Backlog Priority Matrix, and Multi-Horizon Velocity Cockpit for engineering teams.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Chart.js for high-performance interactive charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+  <div class="glow-orb orb-3"></div>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-left">
+      <div class="brand-logo">🐝</div>
+      <div class="brand-info">
+        <h1 class="brand-title">WASP Dashboard</h1>
+        <span class="brand-sub">Work Analysis System & Profile Cockpit</span>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <div class="status-pill">
+        <span class="live-dot"></span>
+        <span id="sync-status">Live Connected</span>
+      </div>
+      <a href="https://app.notion.com/p/Task-Tracker-3fff1bcff9b88188b004f044be8090fe" target="_blank" rel="noopener" class="btn btn-outline" id="nav-notion-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.373L18.47 1.78c-.373-.374-.84-.84-2.195-.747L3.48 2.06c-.466.046-.56.326-.373.56l1.352 1.588zm.98 3.498v13.56c0 .7.42 1.027 1.213.98l14.475-.84c.793-.046.98-.56.98-1.166V6.634c0-.607-.373-.887-.98-.84l-14.708.84c-.653.047-.98.374-.98 1.072zm13.494.98c.047.373 0 .747-.373.793l-.84.14v10.02c-.606.374-1.213.607-1.773.607-.933 0-1.213-.374-1.96-.98l-5.6-7.324v6.998l1.493.327c.047.373 0 .747-.373.793l-3.92.233c-.046-.373 0-.747.373-.793l.933-.187V9.015l-1.306-.233c-.047-.373 0-.747.373-.793l3.966-.233 6.02 7.79V9.108l-1.306-.233c-.047-.373 0-.747.373-.793l3.64-.233c.327 0 .327.373.327.607v.233z"/></svg>
+        Open in Notion
+      </a>
+      <button class="btn btn-primary" id="btn-refresh-data" title="Reload live dataset">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+        Sync Data
+      </button>
+    </div>
+  </header>
+
+  <main class="dashboard-container">
+    <!-- Top KPI Grid -->
+    <section class="kpi-grid">
+      <div class="kpi-card glass" id="kpi-accountability">
+        <div class="kpi-header">
+          <span class="kpi-icon">🎯</span>
+          <span class="kpi-label">Accountability Index</span>
+        </div>
+        <div class="kpi-value-row">
+          <span class="kpi-value" id="val-score">82</span>
+          <span class="kpi-unit">/ 100</span>
+        </div>
+        <div class="kpi-badge badge-green" id="badge-score">🟢 Healthy Execution Cadence</div>
+      </div>
+
+      <div class="kpi-card glass" id="kpi-backlog">
+        <div class="kpi-header">
+          <span class="kpi-icon">📦</span>
+          <span class="kpi-label">Pending Backlog Queue</span>
+        </div>
+        <div class="kpi-value-row">
+          <span class="kpi-value" id="val-backlog">10</span>
+          <span class="kpi-unit">tasks</span>
+        </div>
+        <div class="kpi-meta" id="val-debt-pts">1,325 weighted debt pts</div>
+      </div>
+
+      <div class="kpi-card glass" id="kpi-wip">
+        <div class="kpi-header">
+          <span class="kpi-icon">⚡</span>
+          <span class="kpi-label">In-Flight WIP</span>
+        </div>
+        <div class="kpi-value-row">
+          <span class="kpi-value" id="val-wip">2</span>
+          <span class="kpi-unit">active</span>
+        </div>
+        <div class="kpi-meta">Capacity: Optimal (≤ 5 limit)</div>
+      </div>
+
+      <div class="kpi-card glass" id="kpi-velocity">
+        <div class="kpi-header">
+          <span class="kpi-icon">🗓️</span>
+          <span class="kpi-label">Sprint Completed (7d)</span>
+        </div>
+        <div class="kpi-value-row">
+          <span class="kpi-value" id="val-completed-7d">1</span>
+          <span class="kpi-unit">closed</span>
+        </div>
+        <div class="kpi-meta">2.0 hrs clocked • 100% On-Time</div>
+      </div>
+    </section>
+
+    <!-- Charts Row -->
+    <section class="charts-row">
+      <div class="chart-card glass">
+        <div class="chart-header">
+          <div class="chart-title-group">
+            <h3 class="chart-title">Backlog Priority Mix & Debt Weight</h3>
+            <span class="chart-subtitle">Tier distribution across P1 Urgent, P2 High, P3 Medium, and P4 Low</span>
+          </div>
+          <span class="chart-badge">Live Split</span>
+        </div>
+        <div class="chart-body chart-donut-container">
+          <canvas id="chart-priority-mix"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card glass">
+        <div class="chart-header">
+          <div class="chart-title-group">
+            <h3 class="chart-title">Multi-Horizon Velocity Comparisons</h3>
+            <span class="chart-subtitle">Completed tasks across 7-day, 15-day, and 30-day horizons vs queue</span>
+          </div>
+          <span class="chart-badge">Velocity</span>
+        </div>
+        <div class="chart-body">
+          <canvas id="chart-velocity-bars"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Assignee Breakdown Chart & Health Section -->
+    <section class="assignee-chart-section">
+      <div class="chart-card glass full-width">
+        <div class="chart-header">
+          <div class="chart-title-group">
+            <h3 class="chart-title">👥 Assignee Workload & Capacity Breakdown</h3>
+            <span class="chart-subtitle">Distribution of completed deliverables, in-flight work, and pending backlog across team members</span>
+          </div>
+          <span class="chart-badge">Team Cadence</span>
+        </div>
+        <div class="chart-body chart-bar-h-container">
+          <canvas id="chart-assignee-workload"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filterable Task Register -->
+    <section class="tasks-section glass">
+      <div class="section-header">
+        <div class="section-title-group">
+          <h2 class="section-title">🔍 Filtered Deliverables Register</h2>
+          <span class="section-subtitle">Real-time table synced directly with master Notion database</span>
+        </div>
+        <div class="filter-controls">
+          <div class="search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="filter-search" placeholder="Search tasks, assignees...">
+          </div>
+          <div class="filter-pills" id="assignee-pills">
+            <button class="pill active" data-assignee="all">All Members</button>
+            <button class="pill" data-assignee="karanveer">karanveer</button>
+            <button class="pill" data-assignee="Diviyansh Modi">Diviyansh Modi</button>
+            <button class="pill" data-assignee="Unassigned">Unassigned</button>
+          </div>
+          <div class="filter-pills" id="status-pills">
+            <button class="pill active" data-status="all">All Status</button>
+            <button class="pill" data-status="In Progress">In Progress</button>
+            <button class="pill" data-status="To Do">To Do</button>
+            <button class="pill" data-status="Backlog">Backlog</button>
+            <button class="pill" data-status="Done">Done</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="data-table" id="tasks-table">
+          <thead>
+            <tr>
+              <th>Deliverable Name</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Assignee</th>
+              <th>Due Date</th>
+              <th>Progress Formula</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tasks-tbody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Interactive AI Task Breakdown Tool (Phase 2 Feature) -->
+    <section class="breakdown-section glass">
+      <div class="section-header">
+        <div class="section-title-group">
+          <h2 class="section-title">🧠 AI Task Decomposition Engine</h2>
+          <span class="section-subtitle">Breakdown epic deliverables into sized, prioritized subtasks with estimated hours</span>
+        </div>
+        <span class="chart-badge">Phase 2 AI</span>
+      </div>
+
+      <div class="breakdown-input-row">
+        <input type="text" id="breakdown-input" class="text-input" placeholder="Enter task title (e.g., Reception Management System, ERP SIS Integration)..." value="Reception Management System">
+        <button class="btn btn-primary" id="btn-run-breakdown">
+          <span>Decompose Deliverable</span>
+        </button>
+      </div>
+
+      <div class="preset-chips">
+        <span class="preset-label">Quick Presets:</span>
+        <button class="chip" data-title="Reception Management System">Reception Management System</button>
+        <button class="chip" data-title="ERP Sis Go Through">ERP Sis Go Through</button>
+        <button class="chip" data-title="Kotak Mahindra Bank Video">Kotak Mahindra Bank Video</button>
+        <button class="chip" data-title="Dashboarding Form for Various Uploads">Dashboarding Form for Various Uploads</button>
+      </div>
+
+      <div class="subtasks-grid" id="subtasks-output">
+        <!-- Dynamically generated subtask cards -->
+      </div>
+    </section>
+
+    <!-- Google Workspace / Webhook Alert Simulator (Phase 2 Feature) -->
+    <section class="webhook-section glass">
+      <div class="section-header">
+        <div class="section-title-group">
+          <h2 class="section-title">🚨 Google Chat & Workspace Alerts Console</h2>
+          <span class="section-subtitle">Real-time Card v2 notifications for critical P1 SLA breaches and weekly digests</span>
+        </div>
+        <span class="chart-badge">Webhooks Active</span>
+      </div>
+
+      <div class="webhook-grid">
+        <div class="webhook-card">
+          <div class="card-v2-preview">
+            <div class="card-v2-header">
+              <span class="card-v2-icon">🚨</span>
+              <div>
+                <div class="card-v2-title">URGENT P1 SLA BREACH ALERT</div>
+                <div class="card-v2-sub">WASP Task Engine • 24h SLA Active</div>
+              </div>
+            </div>
+            <div class="card-v2-content">
+              <div class="card-v2-field"><b>Task Name:</b> Dashboarding Form for Various Uploads</div>
+              <div class="card-v2-field"><b>Owner:</b> karanveer • <b>Status:</b> To Do</div>
+              <div class="card-v2-field"><b>Due:</b> 2026-10-20 • <b>Effort:</b> 3.0 hrs</div>
+            </div>
+            <div class="card-v2-footer">
+              <button class="btn-chat-action">OPEN IN NOTION</button>
+            </div>
+          </div>
+          <button class="btn btn-secondary full-btn" id="btn-trigger-p1-alert">Simulate Google Chat P1 Dispatch</button>
+        </div>
+
+        <div class="webhook-card">
+          <div class="card-v2-preview">
+            <div class="card-v2-header">
+              <span class="card-v2-icon">🐝</span>
+              <div>
+                <div class="card-v2-title">WASP Weekly Executive Digest</div>
+                <div class="card-v2-sub">Sprint Horizon Throughput • Score: 82/100</div>
+              </div>
+            </div>
+            <div class="card-v2-content">
+              <div class="card-v2-field"><b>Accountability:</b> 82 / 100 Pts (🟢 Healthy Cadence)</div>
+              <div class="card-v2-field"><b>Velocity:</b> 7d: 1 • 15d: 1 • 30d: 1 deliverables</div>
+              <div class="card-v2-field"><b>Backlog:</b> 10 pending (1,325 debt pts)</div>
+            </div>
+            <div class="card-v2-footer">
+              <button class="btn-chat-action">VIEW TASK TRACKER</button>
+            </div>
+          </div>
+          <button class="btn btn-secondary full-btn" id="btn-trigger-digest-alert">Simulate Weekly Digest Dispatch</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-content">
+      <span>WASP Engine v2.0 • Deployed for GitHub Pages</span>
+      <span>•</span>
+      <a href="https://app.notion.com/p/Task-Tracker-3fff1bcff9b88188b004f044be8090fe" target="_blank" rel="noopener">Notion Task Tracker</a>
+      <span>•</span>
+      <a href="https://app.notion.com/3fff1bcff9b881539b9bc0e00b5ebb93" target="_blank" rel="noopener">Analytics Page</a>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

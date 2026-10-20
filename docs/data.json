@@ -1,0 +1,215 @@
+{
+  "generated_at": "2026-10-20 19:58:03 UTC",
+  "total_tasks": 11,
+  "total_pending": 10,
+  "total_debt_pts": 1825,
+  "total_est_hours": 0.0,
+  "status_counts": {
+    "To Do": 5,
+    "In Progress": 2,
+    "In Review": 1,
+    "Backlog": 2,
+    "Done": 1
+  },
+  "priority_counts": {
+    "P1 - Urgent": 2,
+    "P2 - High": 1,
+    "P3 - Medium": 5,
+    "P4 - Low": 3
+  },
+  "completed_horizons": {
+    "7d": 1,
+    "15d": 1,
+    "30d": 1
+  },
+  "assignee_summary": {
+    "Unassigned": {
+      "total": 7,
+      "done": 1,
+      "in_progress": 1,
+      "backlog": 5
+    },
+    "karanveer": {
+      "total": 4,
+      "done": 0,
+      "in_progress": 1,
+      "backlog": 3
+    },
+    "Diviyansh Modi": {
+      "total": 1,
+      "done": 0,
+      "in_progress": 0,
+      "backlog": 1
+    }
+  },
+  "accountability_score": 82,
+  "rating_label": "\ud83d\udfe2 Healthy Cadence",
+  "tasks": [
+    {
+      "id": "3fff1bcf-f9b8-8006-b342-dcacf664ad27",
+      "title": "Sample Tasks",
+      "status": "Done",
+      "priority": "P1 - Urgent",
+      "assignees": [
+        "Unassigned"
+      ],
+      "due_date": "2026-10-20",
+      "completed_at": "2026-10-20",
+      "estimated_hours": 0.0,
+      "progress_bar": "\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0 100%",
+      "progress_val": 100,
+      "url": "https://app.notion.com/p/Sample-Tasks-3fff1bcff9b88006b342dcacf664ad27"
+    },
+    {
+      "id": "3fff1bcf-f9b8-8087-a116-d2f24c103203",
+      "title": "Kotak Mahindra Bank Video",
+      "status": "In Progress",
+      "priority": "P2 - High",
+      "assignees": [
+        "karanveer"
+      ],
+      "due_date": "2026-10-20",
+      "completed_at": null,
+      "estimated_hours": 0.0,
+      "progress_bar": "\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1 60%",
+      "progress_val": 60,
+      "url": "https://app.notion.com/p/Kotak-Mahindra-Bank-Video-3fff1bcff9b88087a116d2f24c103203"
+    },
+    {
+      "id": "3fff1bcf-f9b8-8028-bc3a-d71e780ad4a6",
+      "title": "Video Editing Skil Via Claude Code",
+      "status": "To Do",
+      "priority": "P4 - Low",
+      "assignees": [
+        "Unassigned"
+      ],
+      "due_date": "2026-10-23",
+      "completed_at": null,
+      "estimated_hours": 0.0,
+      "progress_bar": "\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 20%",
+      "progress_val": 20,
+      "url": "https://app.notion.com/p/Video-Editing-Skil-Via-Claude-Code-3fff1bcff9b88028bc3ad71e780ad4a6"
+    },
+    {
+      "id": "3fff1bcf-f9b8-8005-859d-e0c7abfb67c0",
+      "title": "Meta Video Lineup",
+      "status": "Backlog",
+      "priority": "P3 - Medium",
+      "assignees": [
+        "Unassigned"
+      ],
+      "due_date": "2026-10-24",
+      "completed_at": null,
+      "estimated_hours": 0.0,
+      "progress_bar": "\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 0%",
+      "progress_val": 0,
+      "url": "https://app.notion.com/p/Meta-Video-Lineup-3fff1bcff9b88005859de0c7abfb67c0"
+    },
+    {
+      "id": "3fff1bcf-f9b8-8054-9960-faa7714ec2c0",
+      "title": "Activity Tracker System",
+      "status": "Backlog",
+      "priority": "P3 - Medium",
+      "assignees": [
+        "Unassigned"
+      ],
+      "due_date": "2026-10-24",
+      "completed_at": null,
+      "estimated_hours": 0.0,
+      "progress_bar": "\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 0%",
+      "progress_val": 0,
+      "url": "https://app.notion.com/p/Activity-Tracker-System-3fff1bcff9b880549960faa7714ec2c0"
+    },
+    {
+      "id": "3fff1bcf-f9b8-8070-9c2e-f50e224f19a0",
+      "title": "Claude Carousel Generation",
+      "status": "To Do",
+      "priority": "P3 - Medium",
+      "assignees": [
+        "Unassigned"
+      ],
+      "due_date": "2026-10-21",
+      "completed_at": null,
+      "estimated_hours": 0.0,
+      "progress_bar": "\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 20%",
+      "progress_val": 20,
+      "url": "https://app.notion.com/p/Claude-Carousel-Generation-3fff1bcff9b880709c2ef50e224f19a0"
+    },
+    {
+      "id": "3fff1bcf-f9b8-8041-a97e-f9b47060e1ec",
+      "title": "ERP Sis Go Through",
+      "status": "To Do",
+      "priority": "P3 - Medium",
+      "assignees": [
+        "Unassigned"
+      ],
+      "due_date": "2026-10-21",
+      "completed_at": null,
+      "estimated_hours": 0.0,
+      "progress_bar": "\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 20%",
+      "progress_val": 20,
+      "url": "https://app.notion.com/p/ERP-Sis-Go-Through-3fff1bcff9b88041a97ef9b47060e1ec"
+    },
+    {
+      "id": "3fff1bcf-f9b8-80c2-b626-e94723dbd476",
+      "title": "Google Chat",
+      "status": "In Progress",
+      "priority": "P4 - Low",
+      "assignees": [
+        "Unassigned"
+      ],
+      "due_date": "2026-10-20",
+      "completed_at": null,
+      "estimated_hours": 0.0,
+      "progress_bar": "\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1 60%",
+      "progress_val": 60,
+      "url": "https://app.notion.com/p/Google-Chat-3fff1bcff9b880c2b626e94723dbd476"
+    },
+    {
+      "id": "3fff1bcf-f9b8-8028-8937-c4b038bde917",
+      "title": "Dashboarding Form for Various Uploads",
+      "status": "To Do",
+      "priority": "P1 - Urgent",
+      "assignees": [
+        "karanveer"
+      ],
+      "due_date": "2026-10-20",
+      "completed_at": null,
+      "estimated_hours": 0.0,
+      "progress_bar": "\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 20%",
+      "progress_val": 20,
+      "url": "https://app.notion.com/p/Dashboarding-Form-for-Various-Uploads-3fff1bcff9b880288937c4b038bde917"
+    },
+    {
+      "id": "3fff1bcf-f9b8-80cd-bb36-c30cce8eab2a",
+      "title": "Notion",
+      "status": "In Review",
+      "priority": "P4 - Low",
+      "assignees": [
+        "karanveer",
+        "Diviyansh Modi"
+      ],
+      "due_date": "2026-10-20",
+      "completed_at": null,
+      "estimated_hours": 0.0,
+      "progress_bar": "\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a1\u25a1 80%",
+      "progress_val": 80,
+      "url": "https://app.notion.com/p/Notion-3fff1bcff9b880cdbb36c30cce8eab2a"
+    },
+    {
+      "id": "3fff1bcf-f9b8-8057-9ea7-ccfa048f3714",
+      "title": "Reception Management System",
+      "status": "To Do",
+      "priority": "P3 - Medium",
+      "assignees": [
+        "karanveer"
+      ],
+      "due_date": "2026-10-22",
+      "completed_at": null,
+      "estimated_hours": 0.0,
+      "progress_bar": "\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 20%",
+      "progress_val": 20,
+      "url": "https://app.notion.com/p/Reception-Management-System-3fff1bcff9b880579ea7ccfa048f3714"
+    }
+  ]
+}

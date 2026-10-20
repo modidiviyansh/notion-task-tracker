@@ -34,13 +34,15 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Sync Live Data from Notion
+      - name: Sync Live Data from Notion (Optional)
+        continue-on-error: true
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          PYTHONPATH: .
         run: |
           if [ -n "$NOTION_TOKEN" ]; then
             echo "Refreshing docs/data.json with live Notion dataset..."
-            python3 -m notion_hub.cli export-dashboard
+            python3 -m notion_hub.cli export-dashboard || echo "Notion sync skipped, deploying existing docs/data.json"
           else
             echo "NOTION_TOKEN secret not set in repo. Using committed docs/data.json."
           fi

@@ -614,6 +614,24 @@ def cmd_weekly_digest(args):
         print("ℹ️ Set GOOGLE_CHAT_WEBHOOK_URL in .env to stream directly to a live Google Chat Space.")
 
 
+def cmd_rollover_backlog(args):
+    from .alerts import rollover_overdue_tasks_to_backlog
+    client = get_client()
+    db_id = args.db or _get_saved_db_id()
+    print("🌙 Running Overdue Backlog Rollover Scan...")
+    res = rollover_overdue_tasks_to_backlog(client, db_id, webhook_url=getattr(args, "webhook", None))
+    count = res.get("overdue_count", 0)
+    if count == 0:
+        print("✅ No overdue tasks found. All deadlines healthy!")
+    else:
+        print(f"⚠️ Rolled over {count} overdue deliverable(s) into Backlog Debt:")
+        for t in res.get("tasks", []):
+            print(f"  • {t['title']} (Due: {t['due_date']} | Prev: {t['prev_status']}) ➔ Backlog")
+        dispatch = res.get("dispatch", {})
+        print(f"📢 Google Chat Dispatch: {dispatch.get('status')} ({dispatch.get('message', '')})")
+
+
+
 def cmd_task_breakdown(args):
     from .task_breakdown import decompose_task, apply_subtasks_to_notion
     client = get_client()
@@ -817,6 +835,13 @@ def main():
     p_init.add_argument("--parent", required=True, help="Parent Page ID")
     p_init.add_argument("--name", default="Project Hub", help="Project name")
     p_init.set_defaults(func=cmd_init_hub)
+
+    # rollover-backlog
+    p_ro = subparsers.add_parser("rollover-backlog", help="Scan overdue tasks, move to Backlog and ping Google Chat")
+    p_ro.add_argument("--db", help="Notion Database ID")
+    p_ro.add_argument("--webhook", help="Google Chat Webhook URL")
+    p_ro.set_defaults(func=cmd_rollover_backlog)
+
 
     args = parser.parse_args()
     if hasattr(args, "func"):

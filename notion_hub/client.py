@@ -237,6 +237,11 @@ class NotionClient:
                         pass
         return deleted
 
+    def update_page(self, page_id: str, properties: Dict[str, Any]) -> Dict[str, Any]:
+        """Update properties on an existing page."""
+        clean_id = page_id.replace("-", "")
+        return self._request("PATCH", f"/pages/{clean_id}", {"properties": properties})
+
     def archive_page(self, page_id: str) -> Dict[str, Any]:
         """Archive (soft-delete) a page."""
         clean_id = page_id.replace("-", "")

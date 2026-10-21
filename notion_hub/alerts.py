@@ -187,3 +187,120 @@ def scan_and_dispatch_p1_alerts(client: NotionClient, db_id: str, webhook_url: O
             title = t_list[0].get("plain_text", "").strip() if t_list else "Untitled"
             alerts.append({"task_id": it["id"], "task_title": title, "dispatch": dispatch_res})
     return alerts
+
+
+def rollover_overdue_tasks_to_backlog(
+    client: NotionClient,
+    db_id: str,
+    webhook_url: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Scans for non-completed deliverables whose Due Date (or End Date) has passed.
+    1. Flips Status to 'Backlog'
+    2. Sets 'Original Backlog Item' to True
+    3. Builds and dispatches a Google Chat Card v2 rollover summary card.
+    """
+    clean_db = db_id.replace("-", "")
+    items = client.query_database(clean_db, page_size=100)
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    overdue_tasks = []
+    for it in items:
+        props = it.get("properties", {})
+        status = ((props.get("Status") or {}).get("status") or {}).get("name", "")
+        if status in ("Done", "Archived", "Backlog"):
+            continue
+
+        due_obj = (props.get("Due Date") or {}).get("date") or {}
+        end_obj = (props.get("End Date") or {}).get("date") or {}
+        due_date_str = due_obj.get("start") or end_obj.get("start")
+        if not due_date_str:
+            continue
+
+        if due_date_str < today_str:
+            t_list = props.get("Task Name", {}).get("title", [])
+            title = t_list[0].get("plain_text", "").strip() if t_list else "Untitled Deliverable"
+            priority = ((props.get("Priority") or {}).get("select") or {}).get("name", "P3 - Medium")
+            complexity = ((props.get("Complexity") or {}).get("select") or {}).get("name", "⭐⭐⭐ 3 - Moderate")
+            assignees = [p.get("name") for p in (props.get("Assignee") or {}).get("people", []) if p.get("name")]
+            assignee_str = ", ".join(assignees) if assignees else "Unassigned"
+
+            client.update_page(it["id"], {
+                "Status": {"status": {"name": "Backlog"}},
+                "Original Backlog Item": {"checkbox": True}
+            })
+
+            overdue_tasks.append({
+                "id": it["id"],
+                "title": title,
+                "prev_status": status,
+                "priority": priority,
+                "complexity": complexity,
+                "due_date": due_date_str,
+                "assignee": assignee_str,
+                "url": it.get("url", f"https://notion.so/{it['id'].replace('-', '')}")
+            })
+
+    dispatch_res = {"status": "none", "message": "No overdue tasks found."}
+    if overdue_tasks:
+        widgets = [
+            {
+                "textParagraph": {
+                    "text": f"<b>🌙 3:00 AM IST Daily Rollover Scan</b>: <b>{len(overdue_tasks)} incomplete deliverables</b> missed their deadline and were moved to <b>Backlog Debt</b> for sprint triage."
+                }
+            }
+        ]
+        for t in overdue_tasks[:6]:
+            widgets.append({
+                "decoratedText": {
+                    "topLabel": f"Missed Due Date: {t['due_date']} • Prev: {t['prev_status']}",
+                    "text": f"• <b>{t['title']}</b> ({t['priority']} | {t['complexity']})",
+                    "bottomLabel": f"Owner: {t['assignee']}",
+                    "icon": {"knownIcon": "CLOCK"}
+                }
+            })
+
+        card = {
+            "cardsV2": [{
+                "cardId": f"wasp_rollover_{int(datetime.now().timestamp())}",
+                "card": {
+                    "header": {
+                        "title": "🐝 WASP Engine — Overdue Backlog Rollover",
+                        "subtitle": f"{len(overdue_tasks)} Incomplete Tasks Rolled Into Backlog Debt",
+                        "imageUrl": "https://cdn-icons-png.flaticon.com/512/3281/3281307.png",
+                        "imageType": "CIRCLE"
+                    },
+                    "sections": [
+                        {
+                            "header": "Rolled-Over Deliverables Summary",
+                            "widgets": widgets
+                        },
+                        {
+                            "widgets": [
+                                {
+                                    "buttonList": {
+                                        "buttons": [
+                                            {
+                                                "text": "OPEN NOTION DASHBOARD",
+                                                "color": {"red": 0.14, "green": 0.51, "blue": 0.89, "alpha": 1.0},
+                                                "onClick": {
+                                                    "openLink": {"url": "https://app.notion.com/3fff1bcff9b881be9e4fd3df8f014a52"}
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }]
+        }
+        dispatch_res = send_google_chat_webhook(card, webhook_url)
+
+    return {
+        "overdue_count": len(overdue_tasks),
+        "tasks": overdue_tasks,
+        "dispatch": dispatch_res
+    }
+

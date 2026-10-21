@@ -8,7 +8,9 @@ on:
     - cron: '30 11 * * 5'
     # 3. Sunday Sprint End-Date Rollover (Midnight IST = 18:30 UTC, Sun)
     - cron: '30 18 * * 0'
-    # 4. Periodic Notion Data Refresh for Web Dashboard (Every 4 hours)
+    # 4. Daily Overdue Backlog Rollover Scan (3:00 AM IST = 21:30 UTC, Daily)
+    - cron: '30 21 * * *'
+    # 5. Periodic Notion Data Refresh for Web Dashboard (Every 4 hours)
     - cron: '0 */4 * * *'
   
   # Manual 1-Click Trigger from GitHub Web / Mobile App
@@ -22,9 +24,11 @@ on:
         options:
           - 'all'
           - 'alert-p1'
+          - 'rollover-backlog'
           - 'weekly-digest'
           - 'sync-analytics'
           - 'export-dashboard'
+
 
 permissions:
   contents: write
@@ -63,7 +67,17 @@ jobs:
           echo "🚨 Running Daily P1 Urgent SLA Escalation Scan..."
           python3 -m notion_hub.cli alert-p1
 
-      # --- 2. Friday Executive Digest ---
+      # --- 2. Daily 3:00 AM IST Overdue Backlog Rollover ---
+      - name: Run 3:00 AM IST Overdue Backlog Rollover
+        if: ${{ github.event.schedule == '30 21 * * *' || github.event.inputs.action == 'rollover-backlog' || github.event.inputs.action == 'all' }}
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          GOOGLE_CHAT_WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK_URL }}
+        run: |
+          echo "🌙 Running 3:00 AM IST Overdue Backlog Rollover Scan..."
+          python3 -m notion_hub.cli rollover-backlog
+
+      # --- 3. Friday Executive Digest ---
       - name: Run Friday Executive Accountability Digest
         if: ${{ github.event.schedule == '30 11 * * 5' || github.event.inputs.action == 'weekly-digest' || github.event.inputs.action == 'all' }}
         env:
@@ -73,7 +87,7 @@ jobs:
           echo "📈 Generating Friday Executive Accountability Digest..."
           python3 -m notion_hub.cli weekly-digest
 
-      # --- 3. Refresh Notion Analytical Tables & Visual Charts ---
+      # --- 4. Refresh Notion Analytical Tables & Visual Charts ---
       - name: Sync Notion Tables & Comparative Matrices
         if: ${{ github.event.schedule == '30 18 * * 0' || github.event.inputs.action == 'sync-analytics' || github.event.inputs.action == 'all' }}
         env:
@@ -82,7 +96,7 @@ jobs:
           echo "📊 Syncing Backlog Matrix, Multi-Horizon Velocity, and Charts in Notion..."
           python3 -m notion_hub.cli sync-analytics
 
-      # --- 4. Export Fresh Dataset for Live GitHub Pages Dashboard ---
+      # --- 5. Export Fresh Dataset for Live GitHub Pages Dashboard ---
       - name: Export Fresh Dataset for Web Dashboard
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
@@ -90,7 +104,7 @@ jobs:
           echo "📦 Refreshing docs/data.json for GitHub Pages..."
           python3 -m notion_hub.cli export-dashboard
 
-      # --- 5. Deploy Updated Dashboard to GitHub Pages ---
+      # --- 6. Deploy Updated Dashboard to GitHub Pages ---
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
 

@@ -35,6 +35,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.373L18.47 1.78c-.373-.374-.84-.84-2.195-.747L3.48 2.06c-.466.046-.56.326-.373.56l1.352 1.588zm.98 3.498v13.56c0 .7.42 1.027 1.213.98l14.475-.84c.793-.046.98-.56.98-1.166V6.634c0-.607-.373-.887-.98-.84l-14.708.84c-.653.047-.98.374-.98 1.072zm13.494.98c.047.373 0 .747-.373.793l-.84.14v10.02c-.606.374-1.213.607-1.773.607-.933 0-1.213-.374-1.96-.98l-5.6-7.324v6.998l1.493.327c.047.373 0 .747-.373.793l-3.92.233c-.046-.373 0-.747.373-.793l.933-.187V9.015l-1.306-.233c-.047-.373 0-.747.373-.793l3.966-.233 6.02 7.79V9.108l-1.306-.233c-.047-.373 0-.747.373-.793l3.64-.233c.327 0 .327.373.327.607v.233z"/></svg>
         Open in Notion
       </a>
+      <button class="btn btn-outline" id="btn-open-task-modal">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        + Raise Task
+      </button>
       <button class="btn btn-primary" id="btn-refresh-data" title="Reload live dataset">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
         Sync Data
@@ -282,6 +286,70 @@
       <a href="https://app.notion.com/3fff1bcff9b881539b9bc0e00b5ebb93" target="_blank" rel="noopener">Analytics Page</a>
     </div>
   </footer>
+
+  <!-- Interactive Task Intake Modal -->
+  <div class="modal-overlay" id="task-modal">
+    <div class="modal-card glass">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h3 class="modal-title">📝 Raise Deliverable in Notion</h3>
+          <span class="modal-subtitle">Automatically sized, prioritized, and linked to master database</span>
+        </div>
+        <button class="modal-close" id="btn-close-modal">&times;</button>
+      </div>
+      <form id="task-form" class="modal-form">
+        <div class="form-group">
+          <label for="modal-title">Task Title *</label>
+          <input type="text" id="modal-title" class="text-input" placeholder="e.g. Implement Webhook Auth Gateway" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="modal-priority">Priority Tier</label>
+            <select id="modal-priority" class="select-input">
+              <option value="P1 - Urgent">🔴 P1 - Urgent (24h SLA)</option>
+              <option value="P2 - High" selected>🟠 P2 - High (48h SLA)</option>
+              <option value="P3 - Medium">🟡 P3 - Medium (Sprint SLA)</option>
+              <option value="P4 - Low">🔵 P4 - Low (Backlog SLA)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="modal-complexity">Complexity Sizing</label>
+            <select id="modal-complexity" class="select-input">
+              <option value="⭐ 1 - Trivial">⭐ 1 - Trivial (<1h)</option>
+              <option value="⭐⭐ 2 - Simple">⭐⭐ 2 - Simple (1-4h)</option>
+              <option value="⭐⭐⭐ 3 - Moderate" selected>⭐⭐⭐ 3 - Moderate (1-2d)</option>
+              <option value="⭐⭐⭐⭐ 4 - Complex">⭐⭐⭐⭐ 4 - Complex (3-5d)</option>
+              <option value="⭐⭐⭐⭐⭐ 5 - Epic">⭐⭐⭐⭐⭐ 5 - Epic (>1w)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="modal-assignee">Assignee</label>
+            <select id="modal-assignee" class="select-input">
+              <option value="Unassigned">Unassigned (Open Pool)</option>
+              <option value="karanveer">👤 karanveer</option>
+              <option value="Diviyansh Modi">👤 Diviyansh Modi</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="modal-due">Due Date</label>
+            <input type="date" id="modal-due" class="text-input">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="modal-notes">Deliverable Notes & Definition of Done</label>
+          <textarea id="modal-notes" class="text-input textarea-input" rows="3" placeholder="Key specs, acceptance criteria, or links..."></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-task">
+            <span>Submit to Notion Database</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

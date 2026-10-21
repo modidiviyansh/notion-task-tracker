@@ -1,0 +1,163 @@
+{
+  "name": "WASP Engine - Google Chat Interactive Task Intake Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "google-chat-task-bot",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Google Chat Incoming Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "webhookId": "google-chat-task-bot"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst eventType = body.type || 'MESSAGE';\n\n// Case 1: User submitted the form via Card/Dialog click\nif (eventType === 'CARD_CLICKED') {\n  const formInputs = body.common?.formInputs || {};\n  const title = formInputs.task_title?.stringInputs?.value?.[0] || 'New Task from Google Chat';\n  const priority = formInputs.priority?.stringInputs?.value?.[0] || 'P2 - High';\n  const complexity = formInputs.complexity?.stringInputs?.value?.[0] || '⭐ 3 - Moderate';\n  const dueDate = formInputs.due_date?.stringInputs?.value?.[0] || new Date().toISOString().split('T')[0];\n  const notes = formInputs.notes?.stringInputs?.value?.[0] || 'Created via Google Chat interactive bot.';\n  const sender = body.user?.displayName || 'Google Chat User';\n\n  return [{\n    json: {\n      action: 'create_task',\n      title,\n      priority,\n      complexity,\n      dueDate,\n      notes,\n      sender,\n      spaceName: body.space?.name\n    }\n  }];\n}\n\n// Case 2: User sent a text message in Space (e.g. '@WASP task', 'create task', or '/task')\nconst rawText = body.message?.argumentText || body.message?.text || '';\nconst cleanText = rawText.replace(/@\\S+/g, '').trim();\nconst senderName = body.user?.displayName || 'Team Member';\n\n// If text includes task details directly, parse title\nconst taskTitleCandidate = cleanText.replace(/^(task|create|new|add)\\s*/i, '').trim();\n\nreturn [{\n  json: {\n    action: 'prompt_form',\n    defaultTitle: taskTitleCandidate || 'New Deliverable',\n    senderName,\n    spaceName: body.space?.name\n  }\n}];"
+      },
+      "id": "2",
+      "name": "Router: Parse Google Chat Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "create_task",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3",
+      "name": "Check Action Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/pages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"parent\": {\n    \"database_id\": \"3fff1bcff9b881be9e4fd3df8f014a52\"\n  },\n  \"properties\": {\n    \"Task Name\": {\n      \"title\": [{\"text\": {\"content\": \"{{ $json.title }}\"}}]\n    },\n    \"Priority\": {\n      \"select\": {\"name\": \"{{ $json.priority }}\"}\n    },\n    \"Status\": {\n      \"status\": {\"name\": \"To Do\"}\n    },\n    \"Complexity\": {\n      \"select\": {\"name\": \"{{ $json.complexity }}\"}\n    },\n    \"Due Date\": {\n      \"date\": {\"start\": \"{{ $json.dueDate }}\"}\n    },\n    \"Notes / Deliverables\": {\n      \"rich_text\": [{\"text\": {\"content\": \"Raised by {{ $json.sender }} via Google Chat • {{ $json.notes }}\"}}]\n    }\n  },\n  \"icon\": {\n    \"type\": \"emoji\",\n    \"emoji\": \"🎯\"\n  }\n}",
+        "options": {}
+      },
+      "id": "4",
+      "name": "Create Task in Notion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"cardsV2\": [{\n    \"cardId\": \"task_created_\" + Date.now(),\n    \"card\": {\n      \"header\": {\n        \"title\": \"✅ Task Created in Notion!\",\n        \"subtitle\": \"WASP Master Database Synced\",\n        \"imageUrl\": \"https://cdn-icons-png.flaticon.com/512/190/190411.png\",\n        \"imageType\": \"CIRCLE\"\n      },\n      \"sections\": [{\n        \"widgets\": [\n          {\n            \"decoratedText\": {\n              \"topLabel\": \"Deliverable\",\n              \"text\": \"<b>{{ $('Check Action Type').item.json.title }}</b>\",\n              \"icon\": {\"knownIcon\": \"DESCRIPTION\"}\n            }\n          },\n          {\n            \"decoratedText\": {\n              \"topLabel\": \"Priority & Sizing\",\n              \"text\": \"{{ $('Check Action Type').item.json.priority }} • {{ $('Check Action Type').item.json.complexity }}\",\n              \"icon\": {\"knownIcon\": \"STAR\"}\n            }\n          },\n          {\n            \"buttonList\": {\n              \"buttons\": [{\n                \"text\": \"OPEN IN NOTION\",\n                \"onClick\": {\n                  \"openLink\": {\"url\": \"{{ $json.url }}\"}\n                }\n              }]\n            }\n          }\n        ]\n      }]\n    }\n  }]\n}",
+        "options": {}
+      },
+      "id": "5",
+      "name": "Reply Task Created Card",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"cardsV2\": [{\n    \"cardId\": \"prompt_intake_\" + Date.now(),\n    \"card\": {\n      \"header\": {\n        \"title\": \"📝 Raise New Notion Deliverable\",\n        \"subtitle\": \"WASP Engine Task Intake\",\n        \"imageUrl\": \"https://cdn-icons-png.flaticon.com/512/3596/3596091.png\",\n        \"imageType\": \"CIRCLE\"\n      },\n      \"sections\": [{\n        \"header\": \"Deliverable Configuration\",\n        \"widgets\": [\n          {\n            \"textInput\": {\n              \"name\": \"task_title\",\n              \"label\": \"Task Title\",\n              \"type\": \"SINGLE_LINE\",\n              \"value\": \"{{ $json.defaultTitle }}\"\n            }\n          },\n          {\n            \"selectionInput\": {\n              \"name\": \"priority\",\n              \"label\": \"Priority Tier\",\n              \"type\": \"DROPDOWN\",\n              \"items\": [\n                {\"text\": \"🔴 P1 - Urgent\", \"value\": \"P1 - Urgent\"},\n                {\"text\": \"🟠 P2 - High\", \"value\": \"P2 - High\", \"selected\": true},\n                {\"text\": \"🟡 P3 - Medium\", \"value\": \"P3 - Medium\"},\n                {\"text\": \"🔵 P4 - Low\", \"value\": \"P4 - Low\"}\n              ]\n            }\n          },\n          {\n            \"selectionInput\": {\n              \"name\": \"complexity\",\n              \"label\": \"Complexity\",\n              \"type\": \"DROPDOWN\",\n              \"items\": [\n                {\"text\": \"⭐ 1 - Trivial\", \"value\": \"⭐ 1 - Trivial\"},\n                {\"text\": \"⭐⭐ 2 - Simple\", \"value\": \"⭐⭐ 2 - Simple\"},\n                {\"text\": \"⭐⭐⭐ 3 - Moderate\", \"value\": \"⭐⭐⭐ 3 - Moderate\", \"selected\": true},\n                {\"text\": \"⭐⭐⭐⭐ 4 - Complex\", \"value\": \"⭐⭐⭐⭐ 4 - Complex\"},\n                {\"text\": \"⭐⭐⭐⭐⭐ 5 - Epic\", \"value\": \"⭐⭐⭐⭐⭐ 5 - Epic\"}\n              ]\n            }\n          },\n          {\n            \"textInput\": {\n              \"name\": \"due_date\",\n              \"label\": \"Due Date (YYYY-MM-DD)\",\n              \"type\": \"SINGLE_LINE\",\n              \"value\": \"{{ $now.plus({days: 2}).toFormat('yyyy-MM-dd') }}\"\n            }\n          },\n          {\n            \"buttonList\": {\n              \"buttons\": [{\n                \"text\": \"SUBMIT TO NOTION\",\n                \"color\": {\"red\": 0.1, \"green\": 0.7, \"blue\": 0.4, \"alpha\": 1.0},\n                \"onClick\": {\n                  \"action\": {\n                    \"actionMethodName\": \"submit_task\"\n                  }\n                }\n              }]\n            }\n          }\n        ]\n      }]\n    }\n  }]\n}",
+        "options": {}
+      },
+      "id": "6",
+      "name": "Reply Interactive Form Card",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [880, 400]
+    }
+  ],
+  "connections": {
+    "Google Chat Incoming Webhook": {
+      "main": [
+        [
+          {
+            "node": "Router: Parse Google Chat Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router: Parse Google Chat Event": {
+      "main": [
+        [
+          {
+            "node": "Check Action Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Action Type": {
+      "main": [
+        [
+          {
+            "node": "Create Task in Notion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply Interactive Form Card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Task in Notion": {
+      "main": [
+        [
+          {
+            "node": "Reply Task Created Card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

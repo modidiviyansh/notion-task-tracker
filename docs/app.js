@@ -329,6 +329,72 @@ function setupEventListeners() {
       alert('📢 [Google Chat Simulator]: Weekly Executive Digest Card v2 dispatched to space.');
     });
   }
+
+  // Task Intake Modal
+  const modal = document.getElementById('task-modal');
+  const openModalBtn = document.getElementById('btn-open-task-modal');
+  const closeModalBtn = document.getElementById('btn-close-modal');
+  const cancelModalBtn = document.getElementById('btn-cancel-modal');
+  const taskForm = document.getElementById('task-form');
+
+  if (openModalBtn && modal) {
+    openModalBtn.addEventListener('click', () => {
+      modal.classList.add('open');
+      const dueInput = document.getElementById('modal-due');
+      if (dueInput && !dueInput.value) {
+        const d = new Date();
+        d.setDate(d.getDate() + 2);
+        dueInput.value = d.toISOString().split('T')[0];
+      }
+    });
+  }
+  const closeModal = () => modal && modal.classList.remove('open');
+  if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+  if (cancelModalBtn) cancelModalBtn.addEventListener('click', closeModal);
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+  }
+
+  if (taskForm) {
+    taskForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = document.getElementById('modal-title').value.trim();
+      const priority = document.getElementById('modal-priority').value;
+      const complexity = document.getElementById('modal-complexity').value;
+      const assignee = document.getElementById('modal-assignee').value;
+      const dueDate = document.getElementById('modal-due').value;
+      const notes = document.getElementById('modal-notes').value.trim();
+
+      const newTask = {
+        id: 'user_' + Date.now(),
+        title: title,
+        priority: priority,
+        status: 'To Do',
+        assignees: [assignee],
+        due_date: dueDate || 'Upcoming',
+        progress_bar: '■■□□□□□□□□ 20%',
+        estimated_hours: 3.0
+      };
+
+      if (!dashboardData.tasks) dashboardData.tasks = [];
+      dashboardData.tasks.unshift(newTask);
+      if (dashboardData.priority_counts && dashboardData.priority_counts[priority] !== undefined) {
+        dashboardData.priority_counts[priority]++;
+      }
+      if (dashboardData.status_counts) {
+        dashboardData.status_counts['To Do']++;
+      }
+      dashboardData.total_tasks++;
+      dashboardData.total_pending++;
+
+      updateUI();
+      closeModal();
+      taskForm.reset();
+      alert(`🎉 Deliverable "${title}" added to active queue!\nPriority: ${priority} • Owner: ${assignee}`);
+    });
+  }
 }
 
 function renderDecompositionPreset(title) {

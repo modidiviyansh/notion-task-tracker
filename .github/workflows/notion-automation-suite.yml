@@ -1,0 +1,104 @@
+name: WASP Engine — 100% Autonomous Automation Suite
+
+on:
+  schedule:
+    # 1. Daily Morning P1 SLA Escalation Scan (9:00 AM IST = 03:30 UTC, Mon-Fri)
+    - cron: '30 3 * * 1-5'
+    # 2. Friday Executive Weekly Digest (5:00 PM IST = 11:30 UTC, Fri)
+    - cron: '30 11 * * 5'
+    # 3. Sunday Sprint End-Date Rollover (Midnight IST = 18:30 UTC, Sun)
+    - cron: '30 18 * * 0'
+    # 4. Periodic Notion Data Refresh for Web Dashboard (Every 4 hours)
+    - cron: '0 */4 * * *'
+  
+  # Manual 1-Click Trigger from GitHub Web / Mobile App
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Choose Automation Task to Execute'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'alert-p1'
+          - 'weekly-digest'
+          - 'sync-analytics'
+          - 'export-dashboard'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "wasp-automation"
+  cancel-in-progress: false
+
+jobs:
+  run-automations:
+    name: Execute WASP Automations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+
+      # --- 1. Daily Morning P1 Urgent SLA Escalation ---
+      - name: Run Daily P1 SLA Escalation Scan
+        if: ${{ github.event.schedule == '30 3 * * 1-5' || github.event.inputs.action == 'alert-p1' || github.event.inputs.action == 'all' }}
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          GOOGLE_CHAT_WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK_URL }}
+        run: |
+          echo "🚨 Running Daily P1 Urgent SLA Escalation Scan..."
+          python3 -m notion_hub.cli alert-p1
+
+      # --- 2. Friday Executive Digest ---
+      - name: Run Friday Executive Accountability Digest
+        if: ${{ github.event.schedule == '30 11 * * 5' || github.event.inputs.action == 'weekly-digest' || github.event.inputs.action == 'all' }}
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          GOOGLE_CHAT_WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK_URL }}
+        run: |
+          echo "📈 Generating Friday Executive Accountability Digest..."
+          python3 -m notion_hub.cli weekly-digest
+
+      # --- 3. Refresh Notion Analytical Tables & Visual Charts ---
+      - name: Sync Notion Tables & Comparative Matrices
+        if: ${{ github.event.schedule == '30 18 * * 0' || github.event.inputs.action == 'sync-analytics' || github.event.inputs.action == 'all' }}
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: |
+          echo "📊 Syncing Backlog Matrix, Multi-Horizon Velocity, and Charts in Notion..."
+          python3 -m notion_hub.cli sync-analytics
+
+      # --- 4. Export Fresh Dataset for Live GitHub Pages Dashboard ---
+      - name: Export Fresh Dataset for Web Dashboard
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: |
+          echo "📦 Refreshing docs/data.json for GitHub Pages..."
+          python3 -m notion_hub.cli export-dashboard
+
+      # --- 5. Deploy Updated Dashboard to GitHub Pages ---
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'docs/'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

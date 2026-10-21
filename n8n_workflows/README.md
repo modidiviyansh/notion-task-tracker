@@ -1,61 +1,74 @@
-# 🐝 WASP Engine — n8n & Google Workspace Automation Suite
+# 🐝 WASP Engine — Automation Architecture & n8n Suite
 
-Enterprise-grade automated workflows designed for the **WASP Engine** connected with **Google Workspace (Google Chat Spaces & Gmail)**.
-
----
-
-## 📦 Included Automated Workflows
-
-| Workflow File | Trigger Schedule | Target Channels | Operational Behavior |
-| :--- | :--- | :--- | :--- |
-| **`daily_critical_escalation_alert.json`** | Mon–Fri at 9:00 AM | **Google Chat Space** + **Gmail** | Scans for tasks with Score $\ge 250$ or `P1 - Urgent` $\to$ Posts interactive Google Chat Card v2 $\to$ Emails morning escalation briefing to Admin. |
-| **`sprint_end_date_rollover_backlog.json`** | Sunday at Midnight | **Google Chat Space** | Scans for tasks where `End Date < today` and `Status != Done` $\to$ Automatically marks `Original Backlog Item = True` $\to$ Converts to `Backlog` $\to$ Posts Rollover Debt digest. |
-| **`weekly_admin_accountability_digest.json`**| Friday at 5:00 PM | **Google Chat Space** + **Gmail** | Aggregates 7d / 15d / 30d velocity, conquered backlog items, and team pod distribution $\to$ Posts executive scorecard to Google Chat $\to$ Emails digest to Admin. |
-| **`task_assignment_and_review_router.json`**| Every 15 Minutes | **Google Chat Space** | Scans for tasks in `In Review` or requiring peer signoff $\to$ Dispatches interactive Card v2 with 1-click `REVIEW TASK` button. |
+A production-grade hybrid automation architecture designed for **Notion + Self-Hosted n8n + GitHub Actions + Google Workspace**.
 
 ---
 
-## 🚀 Quick Setup Guide (3 Simple Steps)
+## 🏛️ Strategic Segmentation: GitHub Actions vs. n8n
 
-### Step 1: Import into n8n
-1. Open your **n8n instance** (self-hosted, Docker, or n8n Cloud).
-2. Click **Workflows** in the sidebar $\to$ Click the **`...` (Options)** menu at the top right $\to$ Select **`Import from File`**.
-3. Select any of the `.json` files in this directory:
-   - `daily_critical_escalation_alert.json`
-   - `sprint_end_date_rollover_backlog.json`
-   - `weekly_admin_accountability_digest.json`
-   - `task_assignment_and_review_router.json`
+| Automation Domain | Engine | Execution Trigger | Operational Behavior |
+| :--- | :---: | :--- | :--- |
+| **Static Web Dashboard & Live Data Publishing** | **GitHub Actions** | Push to `master` + Scheduled Cron (every 6h) | Exports Notion tasks to `docs/data.json`, compiles assets, and deploys directly to GitHub Pages (`modidiviyansh.github.io/notion-task-tracker`). |
+| **🚨 Daily P1 SLA Breach Scanner & Team Alerts** | **n8n** | Mon–Fri at 9:00 AM | Scans for tasks with `Priority = P1 - Urgent` or `Score >= 250` sitting in backlog $\to$ Dispatches interactive Card v2 to Google Chat Space & Gmail. |
+| **🔄 Sprint End Date Rollover & Backlog Debt Engine** | **n8n** | Sunday at Midnight | Scans for unfinished tasks past cutoff `End Date` $\to$ Automatically marks `Original Backlog Item = True` $\to$ Transitions status to `Backlog` $\to$ Posts Rollover Debt digest. |
+| **👀 Peer Review Pipeline Router** | **n8n** | Polls every 15 Minutes | Detects deliverables entering `In Review` or requiring peer sign-off $\to$ Alerts reviewers with a direct 1-click `REVIEW TASK` button. |
+| **📈 Weekly Executive Accountability Digest** | **n8n** | Friday at 5:00 PM | Aggregates 7d / 15d / 30d throughput and individual accountability scores $\to$ Posts executive scorecard to Google Chat & Gmail. |
+| **⚡ On-Demand Webhook Rebuild** | **n8n** | Incoming Webhook | When triggered, calls GitHub API to rebuild and redeploy the live GitHub Pages dashboard instantly. |
 
 ---
 
-### Step 2: Configure Notion Credentials
-1. In n8n, open any of the Notion HTTP Request nodes.
-2. Under **Authentication**, select **Header Auth**.
-3. Create a credential:
+## 📦 The 5 Pre-Built n8n Workflow JSONs
+
+| Workflow File | Purpose | Channels / Actions |
+| :--- | :--- | :--- |
+| `daily_critical_escalation_alert.json` | Morning urgent escalation hotlist | Google Chat Space + Gmail |
+| `sprint_end_date_rollover_backlog.json` | Automatic sprint debt rollover | Notion API + Google Chat |
+| `task_assignment_and_review_router.json` | Review queue handoff notifications | Google Chat Space |
+| `weekly_admin_accountability_digest.json` | Weekly performance scorecard | Google Chat Space + Gmail |
+| `trigger_github_pages_rebuild.json` | Instant GitHub Pages rebuild trigger | GitHub API (`repository_dispatch`) |
+
+---
+
+## 🚀 3-Minute Setup on Your Self-Hosted n8n
+
+### Step 1: Import Workflows into n8n
+1. Open your self-hosted n8n web interface.
+2. In the left navigation, click **Workflows**.
+3. In the upper-right corner, click **`...` (More Options)** $\to$ Select **`Import from File`**.
+4. Select any of the `.json` files in this directory.
+
+---
+
+### Step 2: Set Notion Header Auth Credential in n8n
+1. In n8n, navigate to **Credentials** $\to$ **Add Credential** $\to$ Select **Header Auth**.
+2. Configure:
+   - **Credential Name**: `Notion API Token`
    - **Name**: `Authorization`
-   - **Value**: `Bearer YOUR_NOTION_TOKEN` (the token from your `.env` file).
+   - **Value**: `Bearer ntn_YOUR_NOTION_TOKEN_HERE`
+3. Click **Save**. In any imported HTTP Request node querying Notion, select this credential.
 
 ---
 
-### Step 3: Configure Google Workspace (Google Chat & Gmail)
+### Step 3: Configure Target Channels
 
-#### A. Google Chat Space Webhook (Takes 30 seconds):
-1. In **Google Chat**, navigate to your team Space.
-2. Click the Space name at the top $\to$ Select **`Apps & Integrations`** $\to$ Click **`Manage webhooks`**.
-3. Set the name to `🐝 WASP Engine Bot` and click **Save**.
-4. Copy the generated Webhook URL.
-5. In n8n, set the environment variable `GOOGLE_CHAT_WEBHOOK_URL` (or paste the webhook URL directly into the HTTP Request node).
+#### A. Google Chat Space Webhook:
+1. In Google Chat, go to your team Space $\to$ click the Space title $\to$ **Apps & integrations** $\to$ **Manage webhooks**.
+2. Add a webhook named `🐝 WASP Bot` and copy the URL.
+3. In n8n, set an Environment Variable `GOOGLE_CHAT_WEBHOOK_URL` or paste the URL directly into the HTTP Request nodes.
 
-#### B. Gmail / Google Workspace Email:
-1. In n8n, click on the **Gmail** node.
-2. Connect your Google Workspace account via OAuth2 (or standard n8n Google credential).
-3. The recipient is pre-configured to `diviyanshmodi@gcmconventschool.in` (customizable via `ADMIN_WORKSPACE_EMAIL`).
+#### B. Gmail Notifications (Optional):
+1. In the Gmail node in n8n, authenticate with your Google Workspace account via OAuth2.
+2. The recipient is pre-configured to `diviyanshmodi@gcmconventschool.in`.
+
+#### C. On-Demand GitHub Pages Rebuild (Optional):
+1. Create a GitHub Personal Access Token (classic or fine-grained) with `repo` scope.
+2. In `trigger_github_pages_rebuild.json`, set Header Auth `Authorization: token YOUR_GITHUB_PAT`.
+3. Whenever called, it triggers GitHub Actions to refresh the live dashboard immediately.
 
 ---
 
-## 🔗 Live Connected Resources
+## 🔗 Live Production References
 
-- **Master Tasks Database**: [https://app.notion.com/3fff1bcff9b881be9e4fd3df8f014a52](https://app.notion.com/3fff1bcff9b881be9e4fd3df8f014a52)
-- **Main WASP Dashboard**: [https://app.notion.com/p/WASP-Dashboard-Work-Analysis-System-Profile-Dashboard-3fff1bcff9b88188b004f044be8090fe](https://app.notion.com/p/WASP-Dashboard-Work-Analysis-System-Profile-Dashboard-3fff1bcff9b88188b004f044be8090fe)
-- **WASP Personal Dashboard**: [https://app.notion.com/p/WASP-Personal-Dashboard-Work-Analysis-Profile-Cockpit-3fff1bcff9b8817f8023c5f897489080](https://app.notion.com/p/WASP-Personal-Dashboard-Work-Analysis-Profile-Cockpit-3fff1bcff9b8817f8023c5f897489080)
-- **Personal Scoreboard Database**: [https://app.notion.com/3fff1bcff9b8818291f3c96e8ab12275](https://app.notion.com/3fff1bcff9b8818291f3c96e8ab12275)
+- **Live GitHub Pages Dashboard**: [https://modidiviyansh.github.io/notion-task-tracker/](https://modidiviyansh.github.io/notion-task-tracker/)
+- **Master Notion Tasks Database**: [https://app.notion.com/3fff1bcff9b881be9e4fd3df8f014a52](https://app.notion.com/3fff1bcff9b881be9e4fd3df8f014a52)
+- **Main Notion Dashboard**: [https://app.notion.com/p/Task-Tracker-3fff1bcff9b88188b004f044be8090fe](https://app.notion.com/p/Task-Tracker-3fff1bcff9b88188b004f044be8090fe)

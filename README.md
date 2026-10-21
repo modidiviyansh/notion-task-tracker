@@ -196,14 +196,23 @@ Every task page contains 6 structured headers:
      python3 -m notion_hub.cli export-dashboard
      ```
 
-2. **AI Task Decomposition Engine (`notion_hub/task_breakdown.py`)**:
-   - Decomposes complex deliverables into 3–5 sized subtasks (1–5 ⭐ complexity, effort hours, priority tier, functional pod):
+2. **AI Task Sizing & Subtask Decomposition Engine (`notion_hub/task_breakdown.py`)**:
+   - Analyzes deliverables across domain archetypes (School SIS/ERP, Fees Accountability, Reception Systems, Video Pipelines, Analytics Engines).
+   - Sizes overall deliverable complexity (`⭐ 1 - Trivial` to `⭐⭐⭐⭐⭐ 5 - Epic`) and computes total estimated hours.
+   - Decomposes into 3–5 sized subtasks and links them with native Notion **Parent-Child relations**.
+   - Enriches parent Notion page bodies with interactive **Acceptance Criteria & Definition of Done checklists**.
      ```bash
-     # Preview generated subtasks
+     # Preview generated sizing, hours, pod, and subtask breakdown
      python3 -m notion_hub.cli breakdown --task "Reception Management System"
 
-     # Create and link directly in Notion database
+     # Apply sizing, link subtasks, and write checklists directly in Notion
      python3 -m notion_hub.cli breakdown --task "Reception Management System" --apply
+
+     # Batch scan all active un-sized deliverables and preview recommendations
+     python3 -m notion_hub.cli breakdown-all
+
+     # Batch auto-size and link subtasks for ALL un-sized active deliverables
+     python3 -m notion_hub.cli breakdown-all --apply
      ```
 
 3. **Google Workspace & Google Chat Alerts (`notion_hub/alerts.py`)**:

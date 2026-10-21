@@ -606,7 +606,8 @@ def cmd_weekly_digest(args):
     client = get_client()
     db_id = args.db or _get_saved_db_id()
     metrics = calculate_wasp_personal_metrics(client, db_id)
-    hub_url = _get_saved_hub_url() or "https://app.notion.com"
+    hub_id = _get_saved_hub_id()
+    hub_url = f"https://app.notion.com/{hub_id.replace('-', '')}" if hub_id else "https://app.notion.com"
     card = build_weekly_digest_card(metrics, hub_url)
     res = send_google_chat_webhook(card, webhook_url=args.webhook)
     print(f"📢 Weekly Executive Digest generated. Status: {res.get('status')}")

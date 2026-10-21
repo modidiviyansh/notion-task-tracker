@@ -83,7 +83,7 @@ def apply_subtasks_to_notion(
             "Estimated Hours": {"number": st["estimated_hours"]},
             "Complexity": {"select": {"name": st["complexity"]}},
             "Action Required By": {"select": {"name": "Assignee (In Flight)"}},
-            "Notes / Deliverables": {"rich_text": [{"text": {"content": f"Parent: {parent_task_title} • {st['notes']}"}}]}
+            "Task Details": {"rich_text": [{"text": {"content": f"Parent: {parent_task_title} • {st['notes']}"}}]}
         }
         res = client._request("POST", "/pages", {
             "parent": {"database_id": clean_db_id},

@@ -63,11 +63,21 @@ function doGet(e) {
         <option value="⭐⭐⭐⭐⭐ 5 - Epic">⭐⭐⭐⭐⭐ 5 - Epic (>1w)</option>
       </select>
 
+      <label>Category</label>
+      <select id="category">
+        <option value="🛠️ Engineering & Tech" selected>🛠️ Engineering & Tech</option>
+        <option value="🚀 Product & Feature">🚀 Product & Feature</option>
+        <option value="🎨 UI / UX Design">🎨 UI / UX Design</option>
+        <option value="📈 Growth & Marketing">📈 Growth & Marketing</option>
+        <option value="⚙️ Operations & Chores">⚙️ Operations & Chores</option>
+        <option value="💡 Research & Strategy">💡 Research & Strategy</option>
+      </select>
+
       <label>Target Due Date</label>
       <input type="date" id="due">
 
-      <label>Notes / Definition of Done</label>
-      <textarea id="notes" rows="2" placeholder="Acceptance criteria or details..."></textarea>
+      <label>Task Details / Acceptance Criteria</label>
+      <textarea id="notes" rows="2" placeholder="Task details or definition of done..."></textarea>
 
       <button type="submit" id="sbtn">Submit to Notion Database</button>
     </form>
@@ -104,6 +114,7 @@ function doGet(e) {
           title: document.getElementById('title').value,
           priority: document.getElementById('priority').value,
           complexity: document.getElementById('complexity').value,
+          category: document.getElementById('category').value,
           dueDate: document.getElementById('due').value,
           notes: document.getElementById('notes').value
         });
@@ -132,8 +143,9 @@ function createTaskFromWeb(data) {
       "Priority": { select: { name: data.priority || "P2 - High" } },
       "Status": { status: { name: "To Do" } },
       "Complexity": { select: { name: data.complexity || "⭐⭐⭐ 3 - Moderate" } },
+      "Category": { select: { name: data.category || "🛠️ Engineering & Tech" } },
       "Due Date": { date: { start: data.dueDate || Utilities.formatDate(new Date(), "GMT+05:30", "yyyy-MM-dd") } },
-      "Notes / Deliverables": { rich_text: [{ text: { content: data.notes || "Raised via Web Intake Form" } }] }
+      "Task Details": { rich_text: [{ text: { content: data.notes || "Raised via Web Intake Form" } }] }
     },
     icon: { type: "emoji", emoji: "🎯" }
   };
@@ -305,7 +317,7 @@ function handleTaskCreation(event) {
       "Due Date": {
         date: { start: dueDate }
       },
-      "Notes / Deliverables": {
+      "Task Details": {
         rich_text: [{ text: { content: "Author: " + sender + " • " + notes } }]
       }
     },

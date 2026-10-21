@@ -65,7 +65,17 @@ python3 -m notion_hub.cli create-doc --parent <PAGE_ID> --title "System Architec
 python3 -m notion_hub.cli append --page <PAGE_ID> --content "### Progress Update\n- Integrated database layer"
 ```
 
-### 6. Initialize a Full Project Hub
+### 6. Deliverable Decomposition Studio (Human-Directed Notes-to-Subtasks)
+```bash
+# Preview parsing notes into structured subtasks (dry run)
+python3 -m notion_hub.cli decompose --task "Reception Management System" --notes-file "plan.md"
+
+# Apply subtasks directly to Notion (with Parent Task link & plan notes appended to parent page)
+python3 -m notion_hub.cli decompose --task "Reception Management System" --notes-file "plan.md" --apply
+```
+> **Note**: You can also use the interactive **Decomposition Studio** right on the GitHub Pages live dashboard to select any deliverable, write pillars/steps in the "Notes Thingy", review the cards, and create them directly into Notion.
+
+### 7. Initialize a Full Project Hub
 ```bash
 # Creates a Hub Page, Task Board Database, and Specs Page under a parent page
 python3 -m notion_hub.cli init-hub --parent <PAGE_ID> --name "My Awesome Project"
@@ -256,7 +266,7 @@ Every task page contains 6 structured headers:
 │   ├── personal_engine.py             # Accountability matrix & multi-horizon formulas
 │   ├── sync_filtered_analytics.py     # Native tables, QuickChart visualizations & sync engine
 │   ├── alerts.py                      # Google Chat Card v2 & webhook alert dispatcher
-│   ├── task_breakdown.py              # AI-powered task decomposition engine
+│   ├── task_breakdown.py              # Human-directed deliverable decomposition & notes-to-subtasks engine
 │   ├── export_dashboard.py            # Static dashboard dataset exporter for GitHub Pages
 │   ├── task_manager.py                # Legacy task manager module
 │   └── cli.py                         # Full-featured command line interface

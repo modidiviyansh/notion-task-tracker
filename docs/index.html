@@ -191,33 +191,89 @@
       </div>
     </section>
 
-    <!-- Interactive AI Task Breakdown Tool (Phase 2 Feature) -->
-    <section class="breakdown-section glass">
+    <!-- Human-Directed Deliverable Decomposition Studio -->
+    <section class="breakdown-section glass" id="decomposition-studio">
       <div class="section-header">
         <div class="section-title-group">
-          <h2 class="section-title">🧠 AI Task Decomposition Engine</h2>
-          <span class="section-subtitle">Breakdown epic deliverables into sized, prioritized subtasks with estimated hours</span>
+          <h2 class="section-title">🧩 Deliverable Decomposition Studio</h2>
+          <span class="section-subtitle">Select any deliverable, write your execution plan & major pillars, and decompose into linked Notion subtasks</span>
         </div>
-        <span class="chart-badge">Phase 2 AI</span>
+        <span class="chart-badge">Human-Directed Sizing</span>
       </div>
 
-      <div class="breakdown-input-row">
-        <input type="text" id="breakdown-input" class="text-input" placeholder="Enter task title (e.g., Reception Management System, ERP SIS Integration)..." value="Reception Management System">
-        <button class="btn btn-primary" id="btn-run-breakdown">
-          <span>Decompose Deliverable</span>
+      <!-- Step 1: Select Deliverable (Parent Task) -->
+      <div class="decomp-controls-row">
+        <div class="decomp-task-picker">
+          <label for="decomp-task-select" class="field-label">1. Select Target Deliverable (Parent Task)</label>
+          <select id="decomp-task-select" class="select-input select-large">
+            <option value="">-- Choose Deliverable to Decompose --</option>
+          </select>
+        </div>
+        <div class="decomp-meta-pill" id="decomp-selected-meta">
+          <span class="meta-label">Current Sizing:</span>
+          <span id="decomp-current-sizing" class="badge-status">None</span>
+        </div>
+      </div>
+
+      <!-- Step 2: Implementation Plan & Major Pillars Workspace ("Notes Thingy") -->
+      <div class="decomp-notes-container">
+        <div class="decomp-notes-header">
+          <label for="decomp-notes-textarea" class="field-label">2. Implementation Plan, Major Pillars & Subtask Steps</label>
+          <div class="decomp-notes-tools">
+            <button type="button" class="btn btn-outline btn-xs" id="btn-insert-template">
+              📋 Insert Blueprint Template
+            </button>
+            <button type="button" class="btn btn-outline btn-xs" id="btn-clear-notes">
+              🧹 Clear
+            </button>
+          </div>
+        </div>
+        <textarea id="decomp-notes-textarea" class="text-input textarea-notes" rows="7" placeholder="Write or paste your implementation notes here. Organize by pillars and bullet steps:
+
+Major Pillars:
+1. Core Architecture & Schema
+- Design database models and migration scripts (3h, Backend, P2)
+- Set up automated overstay alert stream (2.5h, Backend, P3)
+
+2. Frontend Kiosk & UX
+- Build tablet self check-in screen with camera photo capture (3.5h, Frontend, P2)
+- Integrate thermal printer for QR pass badge generation (2.5h, Frontend, P3)
+
+3. Emergency & Notifications
+- Instant Google Chat webhook dispatch to host employee (2h, Backend, P2)
+- One-click evacuation headcount roster (1.5h, QA & Security, P4)"></textarea>
+      </div>
+
+      <!-- Step 3: Parse & Preview Actions -->
+      <div class="decomp-action-bar">
+        <div class="action-bar-left">
+          <button class="btn btn-primary" id="btn-parse-notes">
+            <span>⚡ Parse & Review Subtasks</span>
+          </button>
+          <button class="btn btn-secondary" id="btn-copy-cli-command" title="Copy CLI command to clipboard">
+            <span>📋 Copy CLI Command</span>
+          </button>
+        </div>
+        <div class="decomp-summary-stats" id="decomp-summary-stats" style="display:none;">
+          <span class="stat-chip" id="stat-subtask-count">0 Subtasks</span>
+          <span class="stat-chip" id="stat-total-hours">0.0 hrs total</span>
+          <span class="stat-chip chip-highlight" id="stat-calc-complexity">⭐ 2 - Simple</span>
+        </div>
+      </div>
+
+      <!-- Step 4: Decomposed Subtasks Output Cards Grid -->
+      <div class="decomp-results-header" id="decomp-results-header" style="display:none;">
+        <h4 class="results-title">Decomposed Subtasks (Parent: <span id="decomp-parent-name-display">-</span>)</h4>
+        <button class="btn btn-success" id="btn-commit-subtasks-notion">
+          <span>🚀 Create Subtasks in Notion</span>
         </button>
       </div>
 
-      <div class="preset-chips">
-        <span class="preset-label">Quick Presets:</span>
-        <button class="chip" data-title="Reception Management System">Reception Management System</button>
-        <button class="chip" data-title="ERP Sis Go Through">ERP Sis Go Through</button>
-        <button class="chip" data-title="Kotak Mahindra Bank Video">Kotak Mahindra Bank Video</button>
-        <button class="chip" data-title="Dashboarding Form for Various Uploads">Dashboarding Form for Various Uploads</button>
-      </div>
-
       <div class="subtasks-grid" id="subtasks-output">
-        <!-- Dynamically generated subtask cards -->
+        <div class="empty-state-card">
+          <div class="empty-icon">📝</div>
+          <div class="empty-text">Select a deliverable above, enter your major pillars and execution steps, and click <b>Parse & Review Subtasks</b>.</div>
+        </div>
       </div>
     </section>
 

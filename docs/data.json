@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-10-21 13:28:09 UTC",
-  "total_tasks": 18,
-  "total_pending": 16,
-  "total_debt_pts": 2750,
-  "total_est_hours": 26.0,
+  "generated_at": "2026-10-21 14:19:49 UTC",
+  "total_tasks": 13,
+  "total_pending": 11,
+  "total_debt_pts": 2025,
+  "total_est_hours": 0.0,
   "status_counts": {
-    "To Do": 10,
+    "To Do": 5,
     "In Progress": 0,
     "In Review": 0,
     "Backlog": 6,
@@ -13,9 +13,9 @@
   },
   "priority_counts": {
     "P1 - Urgent": 2,
-    "P2 - High": 3,
-    "P3 - Medium": 9,
-    "P4 - Low": 4
+    "P2 - High": 1,
+    "P3 - Medium": 7,
+    "P4 - Low": 3
   },
   "completed_horizons": {
     "7d": 2,
@@ -24,10 +24,10 @@
   },
   "assignee_summary": {
     "Unassigned": {
-      "total": 14,
+      "total": 9,
       "done": 1,
       "in_progress": 0,
-      "backlog": 13
+      "backlog": 8
     },
     "karanveer": {
       "total": 4,
@@ -45,81 +45,6 @@
   "accountability_score": 82,
   "rating_label": "\ud83d\udfe2 Healthy Cadence",
   "tasks": [
-    {
-      "id": "400f1bcf-f9b8-815c-a12d-c7bfc3be9fd3",
-      "title": "Reception Management System \u2014 Emergency Evacuation Headcount Sheet & Security Sign-Off",
-      "status": "To Do",
-      "priority": "P4 - Low",
-      "assignees": [
-        "Unassigned"
-      ],
-      "due_date": "No Due Date",
-      "completed_at": null,
-      "estimated_hours": 2,
-      "progress_bar": "\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 20%",
-      "progress_val": 20,
-      "url": "https://app.notion.com/p/Reception-Management-System-Emergency-Evacuation-Headcount-Sheet-Security-Sign-Off-400f1bcff9b8815ca12dc7bfc3be9fd3"
-    },
-    {
-      "id": "400f1bcf-f9b8-818e-9251-cd17853cd3b2",
-      "title": "Reception Management System \u2014 QR Digital Pass & Thermal Printer Integration",
-      "status": "To Do",
-      "priority": "P3 - Medium",
-      "assignees": [
-        "Unassigned"
-      ],
-      "due_date": "No Due Date",
-      "completed_at": null,
-      "estimated_hours": 2.5,
-      "progress_bar": "\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 20%",
-      "progress_val": 20,
-      "url": "https://app.notion.com/p/Reception-Management-System-QR-Digital-Pass-Thermal-Printer-Integration-400f1bcff9b8818e9251cd17853cd3b2"
-    },
-    {
-      "id": "400f1bcf-f9b8-8194-9721-e18c07966a00",
-      "title": "Reception Management System \u2014 Visitor Log Database Schema & Overstay Monitoring",
-      "status": "To Do",
-      "priority": "P3 - Medium",
-      "assignees": [
-        "Unassigned"
-      ],
-      "due_date": "No Due Date",
-      "completed_at": null,
-      "estimated_hours": 3,
-      "progress_bar": "\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 20%",
-      "progress_val": 20,
-      "url": "https://app.notion.com/p/Reception-Management-System-Visitor-Log-Database-Schema-Overstay-Monitoring-400f1bcff9b881949721e18c07966a00"
-    },
-    {
-      "id": "400f1bcf-f9b8-8194-8e68-e5db70c38ce8",
-      "title": "Reception Management System \u2014 Instant Host Notification Dispatch via Chat & SMS",
-      "status": "To Do",
-      "priority": "P2 - High",
-      "assignees": [
-        "Unassigned"
-      ],
-      "due_date": "No Due Date",
-      "completed_at": null,
-      "estimated_hours": 2.5,
-      "progress_bar": "\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 20%",
-      "progress_val": 20,
-      "url": "https://app.notion.com/p/Reception-Management-System-Instant-Host-Notification-Dispatch-via-Chat-SMS-400f1bcff9b881948e68e5db70c38ce8"
-    },
-    {
-      "id": "400f1bcf-f9b8-81e7-a02e-de245b9f9798",
-      "title": "Reception Management System \u2014 Visitor Self Check-In Kiosk & Purpose Selection UI",
-      "status": "To Do",
-      "priority": "P2 - High",
-      "assignees": [
-        "Unassigned"
-      ],
-      "due_date": "No Due Date",
-      "completed_at": null,
-      "estimated_hours": 3,
-      "progress_bar": "\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 20%",
-      "progress_val": 20,
-      "url": "https://app.notion.com/p/Reception-Management-System-Visitor-Self-Check-In-Kiosk-Purpose-Selection-UI-400f1bcff9b881e7a02ede245b9f9798"
-    },
     {
       "id": "400f1bcf-f9b8-81b8-9d2d-ca1613ccdcbf",
       "title": "Implementation SIS Marks Templatization",
@@ -311,7 +236,7 @@
       ],
       "due_date": "2026-10-22",
       "completed_at": null,
-      "estimated_hours": 13,
+      "estimated_hours": 0.0,
       "progress_bar": "\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 20%",
       "progress_val": 20,
       "url": "https://app.notion.com/p/Reception-Management-System-3fff1bcff9b880579ea7ccfa048f3714"

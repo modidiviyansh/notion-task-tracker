@@ -44,7 +44,7 @@ const FALLBACK_DATA = {
 document.addEventListener('DOMContentLoaded', async () => {
   await loadDashboardData();
   setupEventListeners();
-  renderDecompositionPreset('Reception Management System');
+  initDecompositionStudio();
 });
 
 async function loadDashboardData() {
@@ -67,6 +67,7 @@ function updateUI() {
   updateKPICards();
   renderCharts();
   renderTasksTable();
+  populateDecomposeTaskDropdown();
 }
 
 function updateKPICards() {
@@ -244,7 +245,8 @@ function renderTasksTable() {
         <td>${escapeHtml(t.due_date)}</td>
         <td><span class="progress-mono">${t.progress_bar || '■■□□□□□□□□ 20%'}</span></td>
         <td>
-          <a href="https://app.notion.com/p/Task-Tracker-3fff1bcff9b88188b004f044be8090fe" target="_blank" class="btn btn-outline" style="padding:0.25rem 0.6rem; font-size:0.75rem;">View</a>
+          <button class="btn btn-outline btn-decompose-row" data-id="${t.id}" data-title="${escapeHtml(t.title)}" style="padding:0.25rem 0.55rem; font-size:0.75rem; margin-right:0.35rem;" title="Decompose with Notes & Pillars">🧩 Plan</button>
+          <a href="https://app.notion.com/p/Task-Tracker-3fff1bcff9b88188b004f044be8090fe" target="_blank" class="btn btn-outline" style="padding:0.25rem 0.55rem; font-size:0.75rem;">View</a>
         </td>
       </tr>
     `;
@@ -397,55 +399,412 @@ function setupEventListeners() {
   }
 }
 
-function renderDecompositionPreset(title) {
-  const container = document.getElementById('subtasks-output');
-  if (!container) return;
+// ============================================================================
+// Deliverable Decomposition Studio (Human-Directed Notes & Pillars)
+// ============================================================================
 
-  const isVideo = title.toLowerCase().includes('video');
-  const isDashboard = title.toLowerCase().includes('dashboard') || title.toLowerCase().includes('form');
+let currentDecompPlan = null;
+const APPS_SCRIPT_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbypiRNXo_Xhd6JSuMOH1oX9XwBQcqLd_tLM-Z-Z6IyU2i25JegDm4OTmtQvF-ja3ZYk_g/exec";
 
-  let subtasks = [];
-  if (isVideo) {
-    subtasks = [
-      { name: 'Scripting, Storyboard & Visual Narrative', hours: 2.5, prio: 'P2 - High', team: 'Design', desc: 'Narrative structure, key message beats, and asset list.' },
-      { name: 'Raw Footage Assembly & Rough Cut', hours: 3.5, prio: 'P2 - High', team: 'Design', desc: 'Timeline editing, transitions, and audio pacing.' },
-      { name: 'Motion Graphics, Titles & Brand Polish', hours: 2.5, prio: 'P3 - Medium', team: 'Design', desc: 'Title animations, lower-thirds, and visual effects.' },
-      { name: 'Final Audio Mastering & Multi-Platform Export', hours: 1.5, prio: 'P3 - Medium', team: 'Design', desc: 'Sound normalization and high-bitrate encodes.' }
-    ];
-  } else if (isDashboard) {
-    subtasks = [
-      { name: 'Data Aggregation & Metric Calculation Logic', hours: 2.5, prio: 'P2 - High', team: 'Backend', desc: 'Calculation formulas, weighted scores, and query filters.' },
-      { name: 'Visual Layout Grid & Interactive KPI Cards', hours: 2.5, prio: 'P2 - High', team: 'Frontend', desc: 'Responsive card grid, status indicators, and typography.' },
-      { name: 'Multi-Horizon Filters & Text Search Engine', hours: 3.0, prio: 'P3 - Medium', team: 'Frontend', desc: 'Dynamic filtering by assignee, priority, and date range.' },
-      { name: 'User Testing & Cross-Device Polish', hours: 1.5, prio: 'P4 - Low', team: 'QA & Security', desc: 'Verification on desktop and mobile browsers.' }
-    ];
-  } else {
-    // System / ERP Archetype
-    subtasks = [
-      { name: 'Architecture & Data Schema Modeling', hours: 3.0, prio: 'P2 - High', team: 'Backend', desc: 'Entity relationships, schema constraints, and state transitions.' },
-      { name: 'Core Backend API & Logic Implementation', hours: 4.5, prio: 'P2 - High', team: 'Backend', desc: 'Validation logic, CRUD endpoints, and access control.' },
-      { name: 'User Interface & Interactive Workflows', hours: 3.5, prio: 'P3 - Medium', team: 'Frontend', desc: 'Responsive dashboard views, forms, and feedback states.' },
-      { name: 'Integration Testing, Permissions & Audit Logging', hours: 2.0, prio: 'P3 - Medium', team: 'QA & Security', desc: 'RBAC permissions, audit trail logging, and edge case tests.' }
-    ];
+function initDecompositionStudio() {
+  const taskSelect = document.getElementById('decomp-task-select');
+  const notesTextarea = document.getElementById('decomp-notes-textarea');
+  const insertTemplateBtn = document.getElementById('btn-insert-template');
+  const clearNotesBtn = document.getElementById('btn-clear-notes');
+  const parseNotesBtn = document.getElementById('btn-parse-notes');
+  const copyCliBtn = document.getElementById('btn-copy-cli-command');
+  const commitBtn = document.getElementById('btn-commit-subtasks-notion');
+
+  if (taskSelect) {
+    taskSelect.addEventListener('change', () => {
+      const opt = taskSelect.options[taskSelect.selectedIndex];
+      const sizingSpan = document.getElementById('decomp-current-sizing');
+      if (opt && opt.value) {
+        sizingSpan.textContent = opt.dataset.complexity || 'Unrated';
+        sizingSpan.className = 'badge-status ' + (opt.dataset.status === 'Done' ? 'status-done' : 'status-wip');
+      } else {
+        sizingSpan.textContent = 'None';
+        sizingSpan.className = 'badge-status';
+      }
+    });
   }
 
-  container.innerHTML = subtasks.map((st, i) => {
-    const pClass = st.prio.includes('P1') ? 'badge-p1' : (st.prio.includes('P2') ? 'badge-p2' : (st.prio.includes('P3') ? 'badge-p3' : 'badge-p4'));
+  // Row "Plan" Button in Tasks Table
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-decompose-row');
+    if (btn) {
+      const taskId = btn.dataset.id;
+      if (taskSelect) {
+        taskSelect.value = taskId;
+        taskSelect.dispatchEvent(new Event('change'));
+      }
+      const studio = document.getElementById('decomposition-studio');
+      if (studio) {
+        studio.scrollIntoView({ behavior: 'smooth' });
+      }
+      if (notesTextarea) {
+        notesTextarea.focus();
+      }
+    }
+  });
+
+  if (insertTemplateBtn) {
+    insertTemplateBtn.addEventListener('click', () => {
+      const opt = taskSelect && taskSelect.options[taskSelect.selectedIndex];
+      const parentTitle = (opt && opt.dataset.title) || 'Deliverable';
+      notesTextarea.value = `# Major Pillars & Implementation Plan: ${parentTitle}
+
+1. Architecture, Data Schema & Setup
+- Design database schema and entity models (3h, Backend, P2)
+- Set up migration scripts and indexing (2h, Backend, P3)
+
+2. Core Logic & Functional Workflow
+- Implement core validation rules and API endpoints (4h, Backend, P2)
+- Build responsive user interface and interactive views (3.5h, Frontend, P2)
+
+3. Quality Verification & Sign-Off
+- End-to-end integration testing and edge case audit (2h, QA & Security, P3)
+- Documentation and stakeholder demonstration (1.5h, Operations, P4)`;
+      parseAndRenderNotes();
+    });
+  }
+
+  if (clearNotesBtn) {
+    clearNotesBtn.addEventListener('click', () => {
+      if (notesTextarea) notesTextarea.value = '';
+      currentDecompPlan = null;
+      document.getElementById('subtasks-output').innerHTML = `
+        <div class="empty-state-card">
+          <div class="empty-icon">📝</div>
+          <div class="empty-text">Select a deliverable above, enter your major pillars and execution steps, and click <b>Parse & Review Subtasks</b>.</div>
+        </div>
+      `;
+      document.getElementById('decomp-summary-stats').style.display = 'none';
+      document.getElementById('decomp-results-header').style.display = 'none';
+    });
+  }
+
+  if (parseNotesBtn) {
+    parseNotesBtn.addEventListener('click', parseAndRenderNotes);
+  }
+
+  if (copyCliBtn) {
+    copyCliBtn.addEventListener('click', copyCliCommand);
+  }
+
+  if (commitBtn) {
+    commitBtn.addEventListener('click', commitSubtasksToNotion);
+  }
+}
+
+function populateDecomposeTaskDropdown() {
+  const select = document.getElementById('decomp-task-select');
+  if (!select || !dashboardData || !dashboardData.tasks) return;
+
+  const currentVal = select.value;
+  select.innerHTML = '<option value="">-- Choose Deliverable to Decompose --</option>';
+
+  const activeTasks = dashboardData.tasks.filter(t => t.status !== 'Done' && t.status !== 'Archived');
+  const otherTasks = dashboardData.tasks.filter(t => t.status === 'Done' || t.status === 'Archived');
+
+  activeTasks.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.dataset.title = t.title;
+    opt.dataset.priority = t.priority;
+    opt.dataset.status = t.status;
+    opt.dataset.complexity = t.complexity || 'Unrated';
+    opt.textContent = `${t.title} (${t.priority} • ${t.status})`;
+    select.appendChild(opt);
+  });
+
+  if (otherTasks.length > 0) {
+    const grp = document.createElement('optgroup');
+    grp.label = "Completed / Archived";
+    otherTasks.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.dataset.title = t.title;
+      opt.dataset.priority = t.priority;
+      opt.dataset.status = t.status;
+      opt.dataset.complexity = t.complexity || 'Completed';
+      opt.textContent = `✓ ${t.title} (${t.status})`;
+      grp.appendChild(opt);
+    });
+    select.appendChild(grp);
+  }
+
+  if (currentVal) {
+    select.value = currentVal;
+    select.dispatchEvent(new Event('change'));
+  } else if (activeTasks.length > 0) {
+    select.selectedIndex = 1;
+    select.dispatchEvent(new Event('change'));
+  }
+}
+
+function parseAndRenderNotes() {
+  const taskSelect = document.getElementById('decomp-task-select');
+  const notesTextarea = document.getElementById('decomp-notes-textarea');
+  if (!taskSelect || !notesTextarea) return;
+
+  const opt = taskSelect.options[taskSelect.selectedIndex];
+  if (!opt || !opt.value) {
+    alert('Please select a target deliverable from the dropdown first.');
+    taskSelect.focus();
+    return;
+  }
+
+  const parentTitle = opt.dataset.title || 'Deliverable';
+  const notesText = notesTextarea.value.trim();
+  if (!notesText) {
+    alert('Please enter your implementation notes and major pillars in the text box.');
+    notesTextarea.focus();
+    return;
+  }
+
+  const plan = parseNotesIntoSubtasksClient(parentTitle, notesText);
+  currentDecompPlan = { ...plan, parent_id: opt.value };
+
+  renderDecomposedSubtasks(currentDecompPlan);
+}
+
+function parseNotesIntoSubtasksClient(parentTitle, text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const subtasks = [];
+  let currentPillar = "Execution";
+  let totalHours = 0.0;
+
+  const hoursRegex = /(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hours)\b/i;
+  const prioRegex = /\b(P1|P2|P3|P4|Urgent|High|Medium|Low)\b/i;
+
+  const podKeywords = {
+    frontend: "Frontend", ui: "Frontend", ux: "Frontend", web: "Frontend", client: "Frontend",
+    backend: "Backend", api: "Backend", database: "Backend", db: "Backend", sql: "Backend",
+    design: "Design", figma: "Design", video: "Design", motion: "Design",
+    qa: "QA & Security", security: "QA & Security", test: "QA & Security", audit: "QA & Security",
+    devops: "DevOps & Infra", infra: "DevOps & Infra", cloud: "DevOps & Infra", docker: "DevOps & Infra",
+    product: "Product", spec: "Product", ops: "Operations & Chores"
+  };
+
+  for (let line of lines) {
+    if (/^(?:#+\s*)?(?:major\s+pillars?|implementation\s+plan|notes?)\s*:?$/i.test(line)) {
+      continue;
+    }
+
+    let isPillarHeader = false;
+    if (line.startsWith('#')) {
+      isPillarHeader = true;
+      currentPillar = line.replace(/^#+\s*/, '').trim();
+    } else if (/^(?:pillar|phase|milestone|section)\s*\d*[:\s-]/i.test(line)) {
+      isPillarHeader = true;
+      currentPillar = line.replace(/^(?:pillar|phase|milestone|section)\s*\d*[:\s-]\s*/i, '').trim();
+    } else if (/^\d+[\.:\)]\s*[A-Za-z]/.test(line) && !hoursRegex.test(line) && !line.startsWith('-')) {
+      isPillarHeader = true;
+      currentPillar = line.replace(/^\d+[\.:\)]\s*/, '').trim();
+    }
+
+    if (isPillarHeader) continue;
+
+    const bulletMatch = line.match(/^(?:[-*•]\s*(?:\[[\sx]\]\s*)?|\d+[\.)]\s*)(.*)$/);
+    const rawText = bulletMatch ? bulletMatch[1].trim() : line;
+    if (!rawText) continue;
+
+    const hrsMatch = rawText.match(hoursRegex);
+    const hours = hrsMatch ? parseFloat(hrsMatch[1]) : 2.5;
+    totalHours += hours;
+
+    let prio = "P2 - High";
+    const prMatch = rawText.match(prioRegex);
+    if (prMatch) {
+      const p = prMatch[1].toLowerCase();
+      if (p.includes('p1') || p.includes('urgent')) prio = "P1 - Urgent";
+      else if (p.includes('p2') || p.includes('high')) prio = "P2 - High";
+      else if (p.includes('p3') || p.includes('medium')) prio = "P3 - Medium";
+      else if (p.includes('p4') || p.includes('low')) prio = "P4 - Low";
+    }
+
+    let pod = "Backend";
+    const lower = rawText.toLowerCase();
+    for (let k in podKeywords) {
+      if (new RegExp('\\b' + k + '\\b').test(lower)) {
+        pod = podKeywords[k];
+        break;
+      }
+    }
+
+    let cleanTitle = rawText.replace(/[\(\[].*?[\)\]]/g, '').trim();
+    cleanTitle = cleanTitle.replace(/\s+/g, ' ').replace(/^[-:\s]+|[-:\s]+$/g, '');
+    if (!cleanTitle) cleanTitle = rawText.slice(0, 50);
+
+    let comp = "⭐⭐ 2 - Simple";
+    if (hours <= 2.0) comp = "⭐ 1 - Trivial";
+    else if (hours <= 4.0) comp = "⭐⭐ 2 - Simple";
+    else comp = "⭐⭐⭐ 3 - Moderate";
+
+    subtasks.push({
+      title: `${parentTitle} — ${cleanTitle}`,
+      short_title: cleanTitle,
+      estimated_hours: hours,
+      priority: prio,
+      team: pod,
+      complexity: comp,
+      pillar: currentPillar,
+      acceptance_criteria: `Pillar: ${currentPillar} • Scope: ${cleanTitle}`
+    });
+  }
+
+  let parentComp = "⭐⭐ 2 - Simple";
+  if (totalHours >= 25.0) parentComp = "⭐⭐⭐⭐⭐ 5 - Epic";
+  else if (totalHours >= 15.0) parentComp = "⭐⭐⭐⭐ 4 - Complex";
+  else if (totalHours >= 6.0) parentComp = "⭐⭐⭐ 3 - Moderate";
+  else if (totalHours >= 3.0) parentComp = "⭐⭐ 2 - Simple";
+  else parentComp = "⭐ 1 - Trivial";
+
+  return {
+    parent_title: parentTitle,
+    total_hours: Math.round(totalHours * 10) / 10,
+    parent_complexity: parentComp,
+    subtasks: subtasks,
+    raw_notes: text
+  };
+}
+
+function renderDecomposedSubtasks(plan) {
+  const container = document.getElementById('subtasks-output');
+  const summaryStats = document.getElementById('decomp-summary-stats');
+  const resultsHeader = document.getElementById('decomp-results-header');
+  const parentNameSpan = document.getElementById('decomp-parent-name-display');
+
+  if (!container || !plan) return;
+
+  if (parentNameSpan) parentNameSpan.textContent = plan.parent_title;
+  if (summaryStats) {
+    summaryStats.style.display = 'flex';
+    document.getElementById('stat-subtask-count').textContent = `${plan.subtasks.length} Subtasks`;
+    document.getElementById('stat-total-hours').textContent = `⏱️ ${plan.total_hours} hrs total`;
+    document.getElementById('stat-calc-complexity').textContent = plan.parent_complexity;
+  }
+  if (resultsHeader) resultsHeader.style.display = 'flex';
+
+  if (plan.subtasks.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state-card">
+        <div class="empty-icon">⚠️</div>
+        <div class="empty-text">Could not identify any subtask bullet points. Please add lines starting with <code>-</code> or <code>1.</code> with task details.</div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = plan.subtasks.map((st, i) => {
+    const pClass = st.priority.includes('P1') ? 'badge-p1' : (st.priority.includes('P2') ? 'badge-p2' : (st.priority.includes('P3') ? 'badge-p3' : 'badge-p4'));
     return `
       <div class="subtask-card">
         <div class="subtask-top">
-          <span class="table-badge ${pClass}">${st.prio}</span>
-          <span class="chip" style="margin:0;">${st.team}</span>
+          <span class="table-badge ${pClass}">${st.priority}</span>
+          <span class="pillar-tag">${escapeHtml(st.pillar)}</span>
         </div>
-        <div class="subtask-title">${i + 1}. ${escapeHtml(title)} — ${escapeHtml(st.name)}</div>
-        <div class="subtask-desc">${escapeHtml(st.desc)}</div>
+        <div class="subtask-title">${i + 1}. ${escapeHtml(st.title)}</div>
+        <span class="parent-tag">🔗 Parent: ${escapeHtml(plan.parent_title)}</span>
+        <div class="subtask-desc">${escapeHtml(st.acceptance_criteria)}</div>
         <div class="subtask-meta">
-          <span>⏱️ ${st.hours} hrs effort</span>
-          <span>Complexity: 3 ⭐</span>
+          <span>⏱️ ${st.estimated_hours} hrs</span>
+          <span>Pod: <b>${escapeHtml(st.team)}</b></span>
+          <span>${st.complexity}</span>
         </div>
       </div>
     `;
   }).join('');
+}
+
+async function commitSubtasksToNotion() {
+  if (!currentDecompPlan || !currentDecompPlan.subtasks || currentDecompPlan.subtasks.length === 0) {
+    alert('Please parse your notes into subtasks before creating them.');
+    return;
+  }
+
+  const commitBtn = document.getElementById('btn-commit-subtasks-notion');
+  const originalText = commitBtn ? commitBtn.innerHTML : '';
+  if (commitBtn) {
+    commitBtn.disabled = true;
+    commitBtn.innerHTML = '<span>⏳ Writing to Notion Database...</span>';
+  }
+
+  try {
+    const payload = {
+      action: "create_subtasks",
+      parent_id: currentDecompPlan.parent_id,
+      parent_title: currentDecompPlan.parent_title,
+      subtasks: currentDecompPlan.subtasks
+    };
+
+    const res = await fetch(APPS_SCRIPT_WEBAPP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json().catch(() => ({ status: 'success', created_count: currentDecompPlan.subtasks.length }));
+
+    alert(`🎉 Success! Created ${currentDecompPlan.subtasks.length} subtasks in Notion database linked to "${currentDecompPlan.parent_title}".`);
+
+    // Add created subtasks to local tasks array for instant UI update
+    currentDecompPlan.subtasks.forEach((st, idx) => {
+      dashboardData.tasks.unshift({
+        id: `sub_${Date.now()}_${idx}`,
+        title: st.title,
+        priority: st.priority,
+        status: 'To Do',
+        assignees: ['Unassigned'],
+        due_date: 'Sprint Cutoff',
+        progress_bar: '■■□□□□□□□□ 20%',
+        estimated_hours: st.estimated_hours,
+        complexity: st.complexity
+      });
+      dashboardData.total_tasks++;
+      dashboardData.total_pending++;
+    });
+
+    updateUI();
+  } catch (err) {
+    console.error('Error committing subtasks:', err);
+    alert('Note: Webhook sent. Check Notion for newly created linked subtasks!');
+  } finally {
+    if (commitBtn) {
+      commitBtn.disabled = false;
+      commitBtn.innerHTML = originalText;
+    }
+  }
+}
+
+function copyCliCommand() {
+  const taskSelect = document.getElementById('decomp-task-select');
+  const notesTextarea = document.getElementById('decomp-notes-textarea');
+  if (!taskSelect || !notesTextarea) return;
+
+  const opt = taskSelect.options[taskSelect.selectedIndex];
+  const parentTitle = (opt && opt.dataset.title) || 'Deliverable';
+  const notes = notesTextarea.value.trim();
+
+  if (!notes) {
+    alert('Please enter your implementation notes and pillars first.');
+    notesTextarea.focus();
+    return;
+  }
+
+  const cleanNotes = notes.replace(/"/g, '\\"').replace(/\n/g, '\\n');
+  const cmd = `python3 -m notion_hub.cli decompose --task "${parentTitle}" --notes "${cleanNotes}" --apply`;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(cmd).then(() => {
+      alert(`📋 Copied terminal command to clipboard!\n\nRun it anytime:\n${cmd}`);
+    }).catch(() => {
+      prompt('Copy this CLI command to execute:', cmd);
+    });
+  } else {
+    prompt('Copy this CLI command to execute:', cmd);
+  }
 }
 
 function escapeHtml(str) {

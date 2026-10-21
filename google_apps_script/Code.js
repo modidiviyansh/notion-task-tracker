@@ -413,6 +413,89 @@ function doPost(e) {
     
     let responseObj = { text: "🐝 WASP Engine ready." };
     
+    // Handle Subtask Decomposition API from GitHub Pages Dashboard
+    if (postData.action === "decompose_task" || postData.action === "create_subtasks") {
+      const parentId = postData.parent_id;
+      const subtasks = postData.subtasks || [];
+      const parentTitle = postData.parent_title || "Deliverable";
+      const notionToken = PropertiesService.getScriptProperties().getProperty("NOTION_TOKEN");
+
+      if (!notionToken) {
+        return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "NOTION_TOKEN missing in Script Properties" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const created = [];
+      let totalHours = 0;
+
+      for (let i = 0; i < subtasks.length; i++) {
+        const st = subtasks[i];
+        const hours = parseFloat(st.estimated_hours || 2.5);
+        totalHours += hours;
+
+        const payload = {
+          parent: { database_id: NOTION_DATABASE_ID },
+          properties: {
+            "Task Name": { title: [{ text: { content: st.title } }] },
+            "Priority": { select: { name: st.priority || "P2 - High" } },
+            "Status": { status: { name: "To Do" } },
+            "Complexity": { select: { name: st.complexity || "⭐⭐ 2 - Simple" } },
+            "Estimated Hours": { number: hours },
+            "Team / Pod": { select: { name: st.team || "Backend" } },
+            "Parent Task": { relation: [{ id: parentId }] },
+            "Task Details": { rich_text: [{ text: { content: "🎯 Criteria: " + (st.acceptance_criteria || "") } }] }
+          },
+          icon: { type: "emoji", emoji: "🔹" }
+        };
+
+        const opt = {
+          method: "post",
+          contentType: "application/json",
+          headers: {
+            "Authorization": "Bearer " + notionToken,
+            "Notion-Version": "2022-06-28"
+          },
+          payload: JSON.stringify(payload),
+          muteHttpExceptions: true
+        };
+        const resp = UrlFetchApp.fetch("https://api.notion.com/v1/pages", opt);
+        created.push(JSON.parse(resp.getContentText()));
+      }
+
+      // Update parent task hours & complexity
+      let compStr = "⭐⭐⭐ 3 - Moderate";
+      if (totalHours >= 25) compStr = "⭐⭐⭐⭐⭐ 5 - Epic";
+      else if (totalHours >= 15) compStr = "⭐⭐⭐⭐ 4 - Complex";
+      else if (totalHours <= 4) compStr = "⭐ 1 - Trivial";
+      else if (totalHours <= 10) compStr = "⭐⭐ 2 - Simple";
+
+      const parentUpdatePayload = {
+        properties: {
+          "Estimated Hours": { number: totalHours },
+          "Complexity": { select: { name: compStr } }
+        }
+      };
+      UrlFetchApp.fetch("https://api.notion.com/v1/pages/" + parentId.replace(/-/g, ""), {
+        method: "patch",
+        contentType: "application/json",
+        headers: {
+          "Authorization": "Bearer " + notionToken,
+          "Notion-Version": "2022-06-28"
+        },
+        payload: JSON.stringify(parentUpdatePayload),
+        muteHttpExceptions: true
+      });
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        parent_id: parentId,
+        parent_title: parentTitle,
+        total_hours: totalHours,
+        complexity: compStr,
+        created_count: created.length
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     // Handle Google Chat HTTP Bot Event Types
     if (postData.type === "MESSAGE") {
       responseObj = onMessage(postData);
@@ -421,7 +504,7 @@ function doPost(e) {
     } else if (postData.type === "ADDED_TO_SPACE") {
       responseObj = { text: "👋 Thank you for adding WASP Task Tracker! Mention @WASP to raise tasks directly into Notion." };
     }
-    
+
     return ContentService.createTextOutput(JSON.stringify(responseObj))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {

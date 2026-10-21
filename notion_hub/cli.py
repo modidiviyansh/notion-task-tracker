@@ -636,47 +636,51 @@ def cmd_rollover_backlog(args):
 
 def cmd_task_breakdown(args):
     from .task_breakdown import (
-        plan_task_decomposition,
+        parse_notes_into_subtasks,
         find_task_in_database,
-        apply_decomposition_to_notion
+        apply_user_decomposition_to_notion
     )
     client = get_client()
     db_id = args.db or _get_saved_db_id()
     identifier = args.task
 
-    print(f"🧠 Sizing & Decomposing Deliverable: '{identifier}'...")
     parent_task = find_task_in_database(client, db_id, identifier)
-
     if parent_task:
         parent_props = parent_task.get("properties", {})
         task_title = parent_props.get("Task Name", {}).get("title", [{}])[0].get("plain_text", identifier)
-        details_rich = parent_props.get("Task Details", {}).get("rich_text", [])
-        task_details = details_rich[0].get("plain_text", "") if details_rich else ""
-        print(f"📍 Found existing deliverable in Notion: '{task_title}' (ID: {parent_task['id']})")
+        print(f"📍 Selected deliverable in Notion: '{task_title}' (ID: {parent_task['id']})")
     else:
         task_title = identifier
-        task_details = ""
-        print(f"ℹ️ Deliverable not yet found in database. Will create new deliverable if --apply is set.")
+        print(f"ℹ️ Deliverable '{identifier}' not found in database. Will create as new deliverable if --apply is set.")
 
-    plan = plan_task_decomposition(task_title, task_details)
+    notes = getattr(args, "notes", None) or ""
+    notes_file = getattr(args, "notes_file", None)
+    if notes_file and Path(notes_file).exists():
+        with open(notes_file, "r", encoding="utf-8") as f:
+            notes = f.read()
+
+    if not notes.strip():
+        details_rich = parent_task.get("properties", {}).get("Task Details", {}).get("rich_text", []) if parent_task else []
+        notes = details_rich[0].get("plain_text", "") if details_rich else ""
+
+    if not notes.strip():
+        print("⚠️ No notes provided! Provide your implementation plan via --notes \"...\" or --notes-file <PATH>.")
+        return
+
+    plan = parse_notes_into_subtasks(task_title, notes)
 
     print("\n" + "=" * 70)
-    print(f"📊 ARCHETYPE SIZING REPORT: {task_title}")
+    print(f"📝 DECOMPOSITION BLUEPRINT FOR: {task_title}")
     print("=" * 70)
-    print(f"  • Domain:             {plan['domain']}")
-    print(f"  • Recommended Sizing: {plan['parent_complexity']} ({plan['parent_est_hours']} total hours)")
-    print(f"  • Functional Pod:     {plan['parent_team']}")
-    print(f"  • Category:           {plan['parent_category']}")
-    print(f"  • Eisenhower Matrix:  {plan['parent_eisenhower']}")
-    print(f"  • Deliverable Scope:  {plan['overview']}")
-    print("\n📋 Actionable Subtasks Breakdown:")
+    print(f"  • Calculated Sizing:   {plan['parent_complexity']} ({plan['total_hours']} total hours)")
+    print(f"  • Subtasks Defined:    {len(plan['subtasks'])} items")
+    print("\n📋 Decomposed Subtasks:")
     for idx, st in enumerate(plan["subtasks"], 1):
-        print(f"  {idx}. {st['short_title']}")
-        print(f"     ⏱️ {st['estimated_hours']} hrs | {st['complexity']} | Pod: {st['team']} | {st['priority']}")
-        print(f"     🎯 Criteria: {st['acceptance_criteria']}")
+        print(f"  {idx}. [{st['pillar']}] {st['short_title']}")
+        print(f"     ⏱️ {st['estimated_hours']} hrs | {st['complexity']} | Pod: {st['team']} | Priority: {st['priority']}")
 
     if getattr(args, "apply", False):
-        print("\n🚀 Executing AI Sizing & Subtask Linking in Notion...")
+        print("\n🚀 Creating Subtasks in Notion & Linking to Parent Deliverable...")
         if not parent_task:
             clean_db_id = db_id.replace("-", "")
             parent_task = client._request("POST", "/pages", {
@@ -690,62 +694,15 @@ def cmd_task_breakdown(args):
             })
             print(f"  • Created parent deliverable in Notion: {task_title}")
 
-        res = apply_decomposition_to_notion(client, db_id, parent_task, plan)
-        print(f"\n✅ Sizing & Decomposition Applied Successfully!")
-        print(f"  • Parent Updated: {res['parent_title']} ➔ {res['parent_complexity']} ({res['parent_est_hours']}h)")
-        print(f"  • Subtasks Created: {res['subtasks_created']} items linked with native Parent-Child relation")
+        res = apply_user_decomposition_to_notion(client, db_id, parent_task, plan)
+        print(f"\n✅ Subtasks Linked Successfully!")
+        print(f"  • Parent Updated: {res['parent_title']} ➔ {res['parent_complexity']} ({res['total_hours']}h)")
+        print(f"  • Created {res['subtasks_created']} subtasks with native Parent Task relation:")
         for sub in res["subtasks"]:
             print(f"    - {sub['title']} ➔ {sub['url']}")
     else:
-        print("\n💡 Run with --apply to automatically update parent sizing and link subtasks in Notion.")
+        print("\n💡 Run with --apply to create and link these subtasks into Notion.")
 
-
-def cmd_breakdown_all(args):
-    from .task_breakdown import (
-        plan_task_decomposition,
-        apply_decomposition_to_notion
-    )
-    client = get_client()
-    db_id = args.db or _get_saved_db_id()
-    clean_db = db_id.replace("-", "")
-    print("🔍 Scanning database for un-sized active deliverables...")
-    items = client.query_database(clean_db, page_size=100)
-
-    candidates = []
-    for it in items:
-        props = it.get("properties", {})
-        status = (props.get("Status", {}).get("status") or {}).get("name", "")
-        if status in ["Done", "Archived"]:
-            continue
-        comp = (props.get("Complexity", {}).get("select") or {}).get("name")
-        subs = props.get("Subtasks", {}).get("relation", [])
-        parent = props.get("Parent Task", {}).get("relation", [])
-        # Only decompose top-level tasks (no parent) that lack complexity or subtasks
-        if len(parent) == 0 and (not comp or len(subs) == 0):
-            t_obj = props.get("Task Name", {}).get("title", [{}])
-            title = t_obj[0].get("plain_text", "Untitled") if t_obj else "Untitled"
-            candidates.append((it, title, comp, len(subs)))
-
-    if not candidates:
-        print("✅ All active deliverables already have sizing and subtasks configured!")
-        return
-
-    print(f"\nFound {len(candidates)} active deliverable(s) requiring AI sizing & decomposition:")
-    for idx, (it, title, comp, sub_count) in enumerate(candidates, 1):
-        print(f"  {idx}. '{title}' (ID: {it['id']} | Current Sizing: {comp or 'None'} | Subtasks: {sub_count})")
-
-    if getattr(args, "apply", False):
-        print("\n🚀 Applying AI sizing and creating subtasks for all candidate deliverables...")
-        for it, title, _, _ in candidates:
-            print(f"\nProcessing '{title}'...")
-            details_rich = it.get("properties", {}).get("Task Details", {}).get("rich_text", [])
-            desc = details_rich[0].get("plain_text", "") if details_rich else ""
-            plan = plan_task_decomposition(title, desc)
-            res = apply_decomposition_to_notion(client, db_id, it, plan)
-            print(f"  ✅ Sized: {res['parent_complexity']} ({res['parent_est_hours']}h) • Created {res['subtasks_created']} subtasks")
-        print("\n🎉 All active deliverables sized and linked in Notion!")
-    else:
-        print("\n💡 Run with --apply to automatically size and decompose all candidate deliverables in Notion.")
 
 
 
@@ -854,20 +811,15 @@ def main():
     p_wd.add_argument("--webhook", help="Google Chat Space Webhook URL")
     p_wd.set_defaults(func=cmd_weekly_digest)
 
-    # breakdown
-    for cmd in ["breakdown", "task-breakdown", "ai-breakdown"]:
-        p_bd = subparsers.add_parser(cmd, help="Decompose complex deliverable into sized subtasks")
-        p_bd.add_argument("--task", required=True, help="Task title to decompose")
+    # breakdown / decompose
+    for cmd in ["breakdown", "decompose", "task-breakdown"]:
+        p_bd = subparsers.add_parser(cmd, help="Decompose deliverable into subtasks based on your implementation notes & major pillars")
+        p_bd.add_argument("--task", required=True, help="Task title or ID to decompose")
+        p_bd.add_argument("--notes", help="Implementation notes, major pillars, and subtask steps")
+        p_bd.add_argument("--notes-file", help="Path to markdown/text file containing implementation notes")
         p_bd.add_argument("--db", help="Database ID")
-        p_bd.add_argument("--apply", action="store_true", help="Create subtasks directly in Notion")
+        p_bd.add_argument("--apply", action="store_true", help="Create subtasks directly in Notion with Parent Task relation")
         p_bd.set_defaults(func=cmd_task_breakdown)
-
-    # breakdown-all
-    for cmd in ["breakdown-all", "auto-breakdown-all"]:
-        p_bda = subparsers.add_parser(cmd, help="Scan and auto-decompose all un-sized active deliverables")
-        p_bda.add_argument("--db", help="Database ID")
-        p_bda.add_argument("--apply", action="store_true", help="Apply sizing and create subtasks in Notion")
-        p_bda.set_defaults(func=cmd_breakdown_all)
 
     # export-dashboard
     for cmd in ["export-dashboard", "export-data", "dashboard-export"]:

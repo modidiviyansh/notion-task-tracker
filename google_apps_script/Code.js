@@ -398,3 +398,34 @@ function handleTaskCreation(event) {
     };
   }
 }
+
+/**
+ * Web App HTTP POST Entry Point (doPost)
+ * Handles Google Chat Bot HTTP endpoint events (MESSAGE, CARD_CLICKED, ADDED_TO_SPACE)
+ * if configured with the Web App URL in Google Cloud Console.
+ */
+function doPost(e) {
+  try {
+    let postData = {};
+    if (e && e.postData && e.postData.contents) {
+      postData = JSON.parse(e.postData.contents);
+    }
+    
+    let responseObj = { text: "🐝 WASP Engine ready." };
+    
+    // Handle Google Chat HTTP Bot Event Types
+    if (postData.type === "MESSAGE") {
+      responseObj = onMessage(postData);
+    } else if (postData.type === "CARD_CLICKED") {
+      responseObj = onCardClick(postData);
+    } else if (postData.type === "ADDED_TO_SPACE") {
+      responseObj = { text: "👋 Thank you for adding WASP Task Tracker! Mention @WASP to raise tasks directly into Notion." };
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify(responseObj))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ text: "❌ Error: " + err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}

@@ -404,7 +404,7 @@ function setupEventListeners() {
 // ============================================================================
 
 let currentDecompPlan = null;
-const APPS_SCRIPT_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbypiRNXo_Xhd6JSuMOH1oX9XwBQcqLd_tLM-Z-Z6IyU2i25JegDm4OTmtQvF-ja3ZYk_g/exec";
+const NOTION_DATABASE_ID = "3fff1bcff9b881be9e4fd3df8f014a52";
 
 function initDecompositionStudio() {
   const taskSelect = document.getElementById('decomp-task-select');
@@ -415,48 +415,98 @@ function initDecompositionStudio() {
   const copyCliBtn = document.getElementById('btn-copy-cli-command');
   const commitBtn = document.getElementById('btn-commit-subtasks-notion');
   const aiDraftBtn = document.getElementById('btn-ai-draft-gemini');
-  const toggleKeyBtn = document.getElementById('btn-toggle-gemini-key');
-  const keyBox = document.getElementById('gemini-key-box');
-  const keyInput = document.getElementById('gemini-api-key-input');
-  const saveKeyBtn = document.getElementById('btn-save-gemini-key');
-  const clearKeyBtn = document.getElementById('btn-clear-gemini-key');
-  const keyStatus = document.getElementById('gemini-key-status');
+  const toggleConfigBtn = document.getElementById('btn-toggle-config');
+  const configBox = document.getElementById('decomp-config-box');
 
-  // Load saved Gemini Key if present
-  const savedKey = localStorage.getItem('gemini_api_key');
-  if (savedKey) {
-    if (keyInput) keyInput.value = savedKey;
-    if (keyStatus) keyStatus.textContent = '✓ Saved in browser';
-    if (toggleKeyBtn) toggleKeyBtn.textContent = '🔑 Gemini Key (Active)';
+  const notionTokenInput = document.getElementById('notion-api-token-input');
+  const saveNotionBtn = document.getElementById('btn-save-notion-token');
+  const clearNotionBtn = document.getElementById('btn-clear-notion-token');
+  const notionStatusPill = document.getElementById('notion-token-status-pill');
+
+  const geminiKeyInput = document.getElementById('gemini-api-key-input');
+  const saveGeminiBtn = document.getElementById('btn-save-gemini-key');
+  const clearGeminiBtn = document.getElementById('btn-clear-gemini-key');
+  const geminiStatusPill = document.getElementById('gemini-key-status-pill');
+
+  // Load saved credentials
+  function refreshCredsUI() {
+    const savedNotion = localStorage.getItem('notion_token');
+    if (savedNotion) {
+      if (notionTokenInput) notionTokenInput.value = savedNotion;
+      if (notionStatusPill) {
+        notionStatusPill.textContent = '🟢 Direct Sync Active';
+        notionStatusPill.className = 'badge-status status-done';
+      }
+    } else {
+      if (notionStatusPill) {
+        notionStatusPill.textContent = 'Not Set';
+        notionStatusPill.className = 'badge-status status-pending';
+      }
+    }
+
+    const savedGemini = localStorage.getItem('gemini_api_key');
+    if (savedGemini) {
+      if (geminiKeyInput) geminiKeyInput.value = savedGemini;
+      if (geminiStatusPill) {
+        geminiStatusPill.textContent = '🟢 Gemini 1.5 Active';
+        geminiStatusPill.className = 'badge-status status-done';
+      }
+    } else {
+      if (geminiStatusPill) {
+        geminiStatusPill.textContent = 'Smart Synthesizer';
+        geminiStatusPill.className = 'badge-status status-pending';
+      }
+    }
   }
 
-  if (toggleKeyBtn && keyBox) {
-    toggleKeyBtn.addEventListener('click', () => {
-      keyBox.style.display = keyBox.style.display === 'none' ? 'block' : 'none';
-      if (keyBox.style.display === 'block' && keyInput) keyInput.focus();
+  refreshCredsUI();
+
+  if (toggleConfigBtn && configBox) {
+    toggleConfigBtn.addEventListener('click', () => {
+      configBox.style.display = configBox.style.display === 'none' ? 'block' : 'none';
+      if (configBox.style.display === 'block' && notionTokenInput) notionTokenInput.focus();
     });
   }
 
-  if (saveKeyBtn && keyInput) {
-    saveKeyBtn.addEventListener('click', () => {
-      const val = keyInput.value.trim();
+  if (saveNotionBtn && notionTokenInput) {
+    saveNotionBtn.addEventListener('click', () => {
+      const val = notionTokenInput.value.trim();
       if (!val) {
-        alert('Please enter a valid Gemini API key.');
+        alert('Please enter your Notion Integration Token (starts with secret_).');
+        return;
+      }
+      localStorage.setItem('notion_token', val);
+      refreshCredsUI();
+      alert('✓ Notion Token saved! Direct sync is now active.');
+    });
+  }
+
+  if (clearNotionBtn) {
+    clearNotionBtn.addEventListener('click', () => {
+      localStorage.removeItem('notion_token');
+      if (notionTokenInput) notionTokenInput.value = '';
+      refreshCredsUI();
+    });
+  }
+
+  if (saveGeminiBtn && geminiKeyInput) {
+    saveGeminiBtn.addEventListener('click', () => {
+      const val = geminiKeyInput.value.trim();
+      if (!val) {
+        alert('Please enter a valid Gemini API key (starts with AIzaSy).');
         return;
       }
       localStorage.setItem('gemini_api_key', val);
-      if (keyStatus) keyStatus.textContent = '✓ Key saved successfully!';
-      if (toggleKeyBtn) toggleKeyBtn.textContent = '🔑 Gemini Key (Active)';
-      setTimeout(() => { if (keyStatus) keyStatus.textContent = '✓ Saved in browser'; }, 3000);
+      refreshCredsUI();
+      alert('✓ Google Gemini API Key saved! AI drafting will now use live Gemini 1.5 Flash.');
     });
   }
 
-  if (clearKeyBtn) {
-    clearKeyBtn.addEventListener('click', () => {
+  if (clearGeminiBtn) {
+    clearGeminiBtn.addEventListener('click', () => {
       localStorage.removeItem('gemini_api_key');
-      if (keyInput) keyInput.value = '';
-      if (keyStatus) keyStatus.textContent = 'Key removed';
-      if (toggleKeyBtn) toggleKeyBtn.textContent = '🔑 Gemini Key';
+      if (geminiKeyInput) geminiKeyInput.value = '';
+      refreshCredsUI();
     });
   }
 
@@ -501,19 +551,19 @@ function initDecompositionStudio() {
     insertTemplateBtn.addEventListener('click', () => {
       const opt = taskSelect && taskSelect.options[taskSelect.selectedIndex];
       const parentTitle = (opt && opt.dataset.title) || 'Deliverable';
-      notesTextarea.value = `# Major Pillars & Implementation Plan: ${parentTitle}
+      notesTextarea.value = `Major Pillars:
 
-1. Architecture, Data Schema & Setup
-- Design database schema and entity models (3h, Backend, P2)
-- Set up migration scripts and indexing (2h, Backend, P3)
+1. Specifications & Core Architecture
+- Database Schema & Data Models (2.5h, Backend, P2) — Design schema entities, indexes, and migrations for ${parentTitle}
+- Core Service Pipeline & Rules (2.5h, Backend, P2) — Implement core business validation logic and error handlers
 
-2. Core Logic & Functional Workflow
-- Implement core validation rules and API endpoints (4h, Backend, P2)
-- Build responsive user interface and interactive views (3.5h, Frontend, P2)
+2. Client Interface & User Workflow
+- Interactive Dashboard Views (3.5h, Frontend, P2) — Build responsive UI layout, interactive forms, and feedback states
+- System Notifications & Webhooks (2.0h, Backend, P3) — Configure automated event triggers and alert notifications
 
-3. Quality Verification & Sign-Off
-- End-to-end integration testing and edge case audit (2h, QA & Security, P3)
-- Documentation and stakeholder demonstration (1.5h, Operations, P4)`;
+3. Verification & Launch Hardening
+- Automated Edge Case Test Suite (2.0h, QA & Security, P3) — Verify end-to-end integration flows and security boundaries
+- Deployment Verification & Sign-Off (1.5h, DevOps & Infra, P4) — Staging deployment, smoke testing, and owner sign-off`;
       parseAndRenderNotes();
     });
   }
@@ -570,35 +620,41 @@ async function draftNotesWithGemini() {
     let generatedNotes = "";
     if (geminiKey) {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
-      const prompt = `You are an expert technical product manager and software architect.
-Break down the following project deliverable into a concrete, actionable implementation plan:
-Deliverable Title: "${parentTitle}"
+      const prompt = `You are a Principal Software Architect and Technical Lead.
+Break down the project deliverable into a clean, modular, and professional engineering plan.
 
-Format your response strictly using this markdown format (do NOT wrap in code blocks):
+Deliverable: "${parentTitle}"
+
+Format your response strictly using this Markdown template (do NOT wrap in code blocks):
+
 Major Pillars:
+
 1. <Pillar 1 Name>
-- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>
-- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>
+- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Crisp Acceptance Criteria / Definition of Done>
+- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Crisp Acceptance Criteria / Definition of Done>
 
 2. <Pillar 2 Name>
-- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>
-- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>
+- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Crisp Acceptance Criteria / Definition of Done>
+- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Crisp Acceptance Criteria / Definition of Done>
 
 3. <Pillar 3 Name>
-- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>
+- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Crisp Acceptance Criteria / Definition of Done>
 
-Requirements:
-- Subtasks must be technical and sized between 1.0h and 5.0h each (e.g. 2h, 3.5h).
-- Pod must be one of: Backend, Frontend, DevOps & Infra, Design, QA & Security, Product.
-- Priority must be one of: P1, P2, P3, P4.
-- Provide 4 to 6 total subtasks across 2 to 3 major pillars.`;
+Strict Guidelines for Senior-Engineer Quality:
+1. Subtask Title MUST be 3 to 6 words maximum. Keep it clean and punchy (e.g. 'Visitor Schema & NDA Models', NOT 'Design visitor log database models, NDA agreements and migration scripts').
+2. NEVER prefix or repeat the parent deliverable name in the subtask title.
+3. Estimated hours must be realistic: between 1.5h and 4.0h each (e.g., 2h, 2.5h, 3.5h).
+4. Pod MUST be one of: Backend, Frontend, DevOps & Infra, Design, QA & Security, Product.
+5. Priority MUST be one of: P1, P2, P3, P4.
+6. Acceptance criteria after the em-dash '—' must be exactly one clear, technical sentence stating what makes it Done.
+7. Provide 4 to 6 total subtasks across 2 to 3 major pillars.`;
 
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 1024 }
+          generationConfig: { temperature: 0.35, maxOutputTokens: 1024 }
         })
       });
 
@@ -635,58 +691,62 @@ Requirements:
 
 function generateSmartFallbackNotesClient(taskTitle) {
   const t = (taskTitle || '').toLowerCase();
-  if (t.includes('reception') || t.includes('visitor') || t.includes('kiosk') || t.includes('gate')) {
+  if (t.includes('reception') || t.includes('visitor') || t.includes('kiosk') || t.includes('gate') || t.includes('front desk')) {
     return `Major Pillars:
-1. Core Visitor Architecture & Security Schema
-- Design visitor log database models, NDA agreements & migration scripts (3.0h, Backend, P2) — Schema migrations and indexes applied
-- Implement host employee automated overstay notification trigger (2.5h, Backend, P3) — Webhook triggers after 4h threshold
 
-2. Tablet Kiosk & Visitor UX
-- Build touchscreen self-registration interface with photo capture (3.5h, Frontend, P2) — Camera preview and instant registration
-- Integrate thermal badge printer for QR visitor passes (2.5h, Frontend, P3) — Print job dispatched upon sign-in
+1. Architecture & Security Schemas
+- Visitor Schema & NDA Models (2.5h, Backend, P2) — Design Postgres tables, indexes, and encrypted storage for visitor logs & NDA records
+- Overstay Event Alert Worker (2.0h, Backend, P2) — Implement automated background worker tracking visit durations and triggering alerts
 
-3. Emergency Protocol & Audit Logging
-- Real-time host notification dispatch via Google Chat (2.0h, Backend, P2) — Host alerted with visitor snapshot
-- One-click evacuation headcount roster for security personnel (1.5h, QA & Security, P4) — Instant exportable headcount table`;
+2. Kiosk Experience & Hardware Drivers
+- Tablet Touchscreen Check-In UI (3.5h, Frontend, P2) — Build responsive self-registration kiosk with webcam photo capture
+- Thermal Badge Printer Integration (2.5h, Frontend, P3) — Generate and dispatch ESC/POS print jobs with scannable QR badge
+
+3. Hardening & Emergency Protocol
+- Host Google Chat Alert Service (2.0h, Backend, P2) — Dispatch real-time Card v2 notification to host employee upon visitor sign-in
+- Emergency Evacuation Headcount Roster (1.5h, QA & Security, P3) — 1-click real-time exportable headcount roster for building safety marshals`;
   } else if (t.includes('video') || t.includes('kotak') || t.includes('media') || t.includes('film')) {
     return `Major Pillars:
-1. Scripting & Visual Storyboarding
-- Finalize narrative script, hook and compliance sign-off (2.0h, Product, P2) — Approved narrative script
-- Create visual storyboard and shot list with banking visual motifs (2.5h, Design, P3) — Shot breakdown with timing
+
+1. Narrative & Visual Storyboarding
+- Narrative Script & Compliance Review (2.0h, Product, P2) — Finalize messaging, hook, and regulatory compliance clearance
+- Visual Storyboard & Shot List (2.5h, Design, P3) — Produce scene-by-scene framing guide with corporate banking motifs
 
 2. Video Assembly & Motion Graphics
-- Assemble A-roll interview footage and sync multitrack audio (3.5h, Design, P2) — Rough cut timeline completed
-- Build 2D motion graphics, brand title cards and lower-thirds (3.0h, Design, P3) — Brand kit animations rendered
+- A-Roll Assembly & Multitrack Sync (3.5h, Design, P2) — Assemble rough timeline cut with synchronized dialogue and B-roll
+- Brand Motion Graphics & Lower-Thirds (3.0h, Design, P3) — Render animated brand title cards, lower-thirds, and transitions
 
-3. Sound Design & Multi-Platform Mastering
-- Audio balancing, dialogue clarity normalization and music bed (1.5h, Design, P3) — Broadcast standard loudness
-- High-bitrate 4K rendering and YouTube/social cuts export (1.5h, DevOps & Infra, P4) — Multi-aspect ratio deliverables`;
-  } else if (t.includes('dashboard') || t.includes('metric') || t.includes('upload') || t.includes('form')) {
+3. Sound Design & Master Delivery
+- Dialogue Balancing & Master Mix (1.5h, Design, P3) — Normalize vocal clarity to broadcast loudness standards
+- High-Bitrate Multi-Platform Export (1.5h, DevOps & Infra, P4) — Render optimized 4K master and social cuts`;
+  } else if (t.includes('dashboard') || t.includes('metric') || t.includes('upload') || t.includes('form') || t.includes('report')) {
     return `Major Pillars:
-1. Data Ingestion & Calculation Engine
-- Build resilient file upload endpoint with schema validation (3.0h, Backend, P2) — Multi-format file intake
-- Implement metric rollup formulas, weighted scores and caching (3.0h, Backend, P2) — Sub-100ms analytics retrieval
 
-2. Responsive Visualization & Controls
-- Design glassmorphic KPI cards grid and interactive charts (3.5h, Frontend, P2) — Dynamic Chart.js visualizations
-- Implement date range filters, column search and CSV exporter (2.5h, Frontend, P3) — Instant filtering & export
+1. Ingestion & Calculation Engine
+- Multi-Format File Intake Endpoint (3.0h, Backend, P2) — Build resilient upload endpoint with schema validation and sanitization
+- Metric Rollup & Weighted Caching (3.0h, Backend, P2) — Implement aggregation formulas, percentile ranking, and in-memory cache
 
-3. Cross-Browser QA & Permission Scopes
-- Role-based view access control and data redaction (2.0h, QA & Security, P3) — RBAC permissions verified
-- Responsive viewport polish across mobile, tablet and desktop (1.5h, Frontend, P4) — Zero layout shifts`;
+2. Visualization & Interactive Controls
+- Glassmorphic KPI Grid & Charts (3.5h, Frontend, P2) — Render dynamic Chart.js visualizations with responsive breakpoints
+- Column Filter & CSV Exporter (2.0h, Frontend, P3) — Implement multi-horizon filtering, search, and client-side data export
+
+3. Security & Cross-Device Hardening
+- Role-Based Scope Permissions (2.0h, QA & Security, P3) — Verify RBAC restrictions, sensitive metric masking, and audit logging
+- Cross-Browser Layout Polish (1.5h, Frontend, P4) — Verify responsive behavior across mobile, tablet, and desktop viewports`;
   } else {
     return `Major Pillars:
-1. Core Architecture & Backend Services
-- Define domain data models, validation schemas and API endpoints for ${taskTitle} (3.5h, Backend, P2) — Complete CRUD API specs
-- Implement business logic engine, error handling and event logging (3.0h, Backend, P2) — Resilient error handling
 
-2. User Interface & Interactive Experience
-- Build responsive UI components, state management and data tables (3.5h, Frontend, P2) — Clean interactive workflow
-- Add user feedback toasts, progress indicators and loading states (2.0h, Frontend, P3) — Intuitive micro-interactions
+1. Core Architecture & Specifications
+- Data Schema & API Contract (3.0h, Backend, P2) — Define normalized database entities, migrations, and CRUD API specs for ${taskTitle}
+- Core Logic Engine & Validation (3.0h, Backend, P2) — Implement core business logic, input validation, and structured error handling
 
-3. Verification, Security & Deployment
-- Write automated unit and integration test suite (2.0h, QA & Security, P3) — 85%+ coverage on critical paths
-- Configure CI/CD deployment pipeline and monitoring alerts (1.5h, DevOps & Infra, P4) — Staging verification complete`;
+2. Interactive UI & User Workflow
+- Responsive Component Views (3.5h, Frontend, P2) — Build interactive dashboard views, forms, and responsive data tables
+- User Feedback & Loading States (2.0h, Frontend, P3) — Implement progress toasts, micro-interactions, and optimistic state updates
+
+3. Hardening, QA & Delivery
+- Integration & Edge Case Test Suite (2.0h, QA & Security, P3) — Write automated test coverage for critical paths and failure modes
+- CI/CD Pipeline & Staging Verification (1.5h, DevOps & Infra, P4) — Deploy to staging environment, verify health check, and tag release`;
   }
 }
 
@@ -826,9 +886,29 @@ function parseNotesIntoSubtasksClient(parentTitle, text) {
       }
     }
 
-    let cleanTitle = rawText.replace(/[\(\[].*?[\)\]]/g, '').trim();
-    cleanTitle = cleanTitle.replace(/\s+/g, ' ').replace(/^[-:\s]+|[-:\s]+$/g, '');
-    if (!cleanTitle) cleanTitle = rawText.slice(0, 50);
+    // Separate clean title from acceptance criteria using em-dash '—', '--', or ':'
+    let criteria = "";
+    let rawTitle = rawText;
+    if (rawText.includes("—")) {
+      const parts = rawText.split("—");
+      rawTitle = parts[0].trim();
+      criteria = parts.slice(1).join("—").trim();
+    } else if (rawText.includes(" -- ")) {
+      const parts = rawText.split(" -- ");
+      rawTitle = parts[0].trim();
+      criteria = parts.slice(1).join(" -- ").trim();
+    } else if (rawText.includes(":") && !/https?:\/\//i.test(rawText)) {
+      const parts = rawText.split(":");
+      rawTitle = parts[0].trim();
+      criteria = parts.slice(1).join(":").trim();
+    }
+
+    let cleanTitle = rawTitle.replace(/[\(\[].*?[\)\]]/g, '').trim();
+    cleanTitle = cleanTitle.replace(/\s+/g, ' ').replace(/^[-:\s•]+|[-:\s•]+$/g, '');
+    if (!cleanTitle) cleanTitle = rawTitle.slice(0, 45).trim();
+
+    criteria = criteria.replace(/[\(\[].*?[\)\]]/g, '').trim();
+    if (!criteria) criteria = `Verified implementation of ${cleanTitle} under ${currentPillar}.`;
 
     let comp = "⭐⭐ 2 - Simple";
     if (hours <= 2.0) comp = "⭐ 1 - Trivial";
@@ -836,14 +916,14 @@ function parseNotesIntoSubtasksClient(parentTitle, text) {
     else comp = "⭐⭐⭐ 3 - Moderate";
 
     subtasks.push({
-      title: `${parentTitle} — ${cleanTitle}`,
+      title: cleanTitle,
       short_title: cleanTitle,
       estimated_hours: hours,
       priority: prio,
       team: pod,
       complexity: comp,
       pillar: currentPillar,
-      acceptance_criteria: `Pillar: ${currentPillar} • Scope: ${cleanTitle}`
+      acceptance_criteria: criteria
     });
   }
 
@@ -884,7 +964,7 @@ function renderDecomposedSubtasks(plan) {
     container.innerHTML = `
       <div class="empty-state-card">
         <div class="empty-icon">⚠️</div>
-        <div class="empty-text">Could not identify any subtask bullet points. Please add lines starting with <code>-</code> or <code>1.</code> with task details.</div>
+        <div class="empty-text">Could not identify any subtask bullet points. Please add lines starting with <code>-</code> with task details.</div>
       </div>
     `;
     return;
@@ -900,7 +980,7 @@ function renderDecomposedSubtasks(plan) {
         </div>
         <div class="subtask-title">${i + 1}. ${escapeHtml(st.title)}</div>
         <span class="parent-tag">🔗 Parent: ${escapeHtml(plan.parent_title)}</span>
-        <div class="subtask-desc">${escapeHtml(st.acceptance_criteria)}</div>
+        <div class="subtask-desc">🎯 ${escapeHtml(st.acceptance_criteria)}</div>
         <div class="subtask-meta">
           <span>⏱️ ${st.estimated_hours} hrs</span>
           <span>Pod: <b>${escapeHtml(st.team)}</b></span>
@@ -917,30 +997,100 @@ async function commitSubtasksToNotion() {
     return;
   }
 
+  let notionToken = localStorage.getItem('notion_token');
+  if (!notionToken || !notionToken.trim()) {
+    const entered = prompt(
+      "🔑 Notion Integration Token Required:\n\n" +
+      "To create subtasks directly in your Notion database, please paste your Notion API token (starts with secret_):\n\n" +
+      "(This is saved securely in your browser's local storage so you never have to re-type it)"
+    );
+    if (entered && entered.trim()) {
+      notionToken = entered.trim();
+      localStorage.setItem('notion_token', notionToken);
+      const notionStatusPill = document.getElementById('notion-token-status-pill');
+      if (notionStatusPill) {
+        notionStatusPill.textContent = '🟢 Direct Sync Active';
+        notionStatusPill.className = 'badge-status status-done';
+      }
+    } else {
+      alert("⚠️ Direct Notion sync cancelled. You can also run the 1-click CLI command by clicking 'Copy CLI Command'.");
+      const configBox = document.getElementById('decomp-config-box');
+      if (configBox) configBox.style.display = 'block';
+      return;
+    }
+  }
+
   const commitBtn = document.getElementById('btn-commit-subtasks-notion');
   const originalText = commitBtn ? commitBtn.innerHTML : '';
   if (commitBtn) {
     commitBtn.disabled = true;
-    commitBtn.innerHTML = '<span>⏳ Writing to Notion Database...</span>';
+    commitBtn.innerHTML = '<span>⏳ Connecting to Notion API...</span>';
   }
 
+  const cleanParentId = currentDecompPlan.parent_id.replace(/-/g, '');
+  const total = currentDecompPlan.subtasks.length;
+  let successCount = 0;
+
   try {
-    const payload = {
-      action: "create_subtasks",
-      parent_id: currentDecompPlan.parent_id,
-      parent_title: currentDecompPlan.parent_title,
-      subtasks: currentDecompPlan.subtasks
-    };
+    for (let i = 0; i < total; i++) {
+      const st = currentDecompPlan.subtasks[i];
+      if (commitBtn) {
+        commitBtn.innerHTML = `<span>⏳ Creating ${i + 1}/${total}: ${escapeHtml(st.title.slice(0, 22))}...</span>`;
+      }
 
-    const res = await fetch(APPS_SCRIPT_WEBAPP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    });
+      const pagePayload = {
+        parent: { database_id: NOTION_DATABASE_ID },
+        properties: {
+          "Task Name": { title: [{ text: { content: st.title } }] },
+          "Priority": { select: { name: st.priority } },
+          "Status": { status: { name: "To Do" } },
+          "Complexity": { select: { name: st.complexity } },
+          "Estimated Hours": { number: st.estimated_hours },
+          "Team / Pod": { select: { name: st.team } },
+          "Parent Task": { relation: [{ id: cleanParentId }] },
+          "Task Details": { rich_text: [{ text: { content: `🎯 [${st.pillar}] ${st.acceptance_criteria}` } }] }
+        },
+        icon: { type: "emoji", emoji: "🔹" }
+      };
 
-    const data = await res.json().catch(() => ({ status: 'success', created_count: currentDecompPlan.subtasks.length }));
+      const resp = await fetch("https://api.notion.com/v1/pages", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + notionToken,
+          "Notion-Version": "2022-06-28",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(pagePayload)
+      });
 
-    alert(`🎉 Success! Created ${currentDecompPlan.subtasks.length} subtasks in Notion database linked to "${currentDecompPlan.parent_title}".`);
+      if (!resp.ok) {
+        const errJson = await resp.json().catch(() => ({}));
+        throw new Error(errJson.message || `Notion HTTP ${resp.status}`);
+      }
+      successCount++;
+    }
+
+    // Update parent task Estimated Hours and Complexity
+    if (commitBtn) {
+      commitBtn.innerHTML = `<span>⏳ Updating parent deliverable metrics...</span>`;
+    }
+
+    await fetch(`https://api.notion.com/v1/pages/${cleanParentId}`, {
+      method: "PATCH",
+      headers: {
+        "Authorization": "Bearer " + notionToken,
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        properties: {
+          "Estimated Hours": { number: currentDecompPlan.total_hours },
+          "Complexity": { select: { name: currentDecompPlan.parent_complexity } }
+        }
+      })
+    }).catch(e => console.warn('Parent patch warning:', e));
+
+    alert(`🎉 Success! Created ${successCount} subtasks directly in Notion linked to "${currentDecompPlan.parent_title}".`);
 
     // Add created subtasks to local tasks array for instant UI update
     currentDecompPlan.subtasks.forEach((st, idx) => {
@@ -950,7 +1100,7 @@ async function commitSubtasksToNotion() {
         priority: st.priority,
         status: 'To Do',
         assignees: ['Unassigned'],
-        due_date: 'Sprint Cutoff',
+        due_date: 'Sprint Horizon',
         progress_bar: '■■□□□□□□□□ 20%',
         estimated_hours: st.estimated_hours,
         complexity: st.complexity
@@ -962,7 +1112,7 @@ async function commitSubtasksToNotion() {
     updateUI();
   } catch (err) {
     console.error('Error committing subtasks:', err);
-    alert('Note: Webhook sent. Check Notion for newly created linked subtasks!');
+    alert(`⚠️ Notion API error: ${err.message}\n\nPlease verify your Notion Integration Token has access to the database, or use the 1-click terminal command.`);
   } finally {
     if (commitBtn) {
       commitBtn.disabled = false;

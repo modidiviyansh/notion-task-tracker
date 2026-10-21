@@ -223,8 +223,8 @@
             <button type="button" class="btn btn-primary btn-xs" id="btn-ai-draft-gemini" title="Use Google Gemini to automatically draft implementation plan and major pillars into notes">
               ✨ AI Draft with Gemini
             </button>
-            <button type="button" class="btn btn-outline btn-xs" id="btn-toggle-gemini-key" title="Configure Google Gemini API Key">
-              🔑 Gemini Key
+            <button type="button" class="btn btn-outline btn-xs" id="btn-toggle-config" title="Configure Notion Direct Sync and Gemini API Key">
+              ⚙️ Sync & API Keys
             </button>
             <button type="button" class="btn btn-outline btn-xs" id="btn-insert-template">
               📋 Blueprint Template
@@ -235,17 +235,41 @@
           </div>
         </div>
 
-        <!-- Collapsible Gemini Key Configuration Box -->
-        <div id="gemini-key-box" class="gemini-key-box" style="display:none;">
-          <div class="gemini-key-inner">
-            <span class="gemini-key-title">🔑 Gemini API Key:</span>
-            <input type="password" id="gemini-api-key-input" class="text-input text-input-xs" placeholder="Paste Gemini API key (AIzaSy...)" style="flex:1; max-width:320px;">
-            <button type="button" class="btn btn-primary btn-xs" id="btn-save-gemini-key">Save</button>
-            <button type="button" class="btn btn-outline btn-xs" id="btn-clear-gemini-key">Remove</button>
-            <span id="gemini-key-status" class="gemini-key-status"></span>
+        <!-- Studio Sync & API Keys Drawer -->
+        <div id="decomp-config-box" class="decomp-config-drawer" style="display:none;">
+          <div class="config-drawer-header">
+            <span class="config-drawer-title">⚙️ Decomposition Studio & Notion Direct Sync Settings</span>
+            <span class="config-drawer-subtitle">Credentials are stored locally in your browser's <code>localStorage</code></span>
           </div>
-          <div class="gemini-hint">
-            💡 Free API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>. Stored locally in your browser. When left empty, built-in smart architecture synthesis drafts your plan.
+          <div class="config-drawer-grid">
+            <div class="config-card">
+              <div class="config-card-header">
+                <label for="notion-api-token-input" class="config-label">🔑 Notion Integration Token</label>
+                <span id="notion-token-status-pill" class="badge-status">Not Set</span>
+              </div>
+              <div class="config-card-body">
+                <input type="password" id="notion-api-token-input" class="text-input text-input-xs" placeholder="Paste Notion Token (secret_...)">
+                <div class="config-card-actions">
+                  <button type="button" class="btn btn-primary btn-xs" id="btn-save-notion-token">Save Token</button>
+                  <button type="button" class="btn btn-outline btn-xs" id="btn-clear-notion-token">Remove</button>
+                </div>
+                <span class="field-hint">Enables 1-click direct subtask creation into Notion database with zero middleman servers.</span>
+              </div>
+            </div>
+            <div class="config-card">
+              <div class="config-card-header">
+                <label for="gemini-api-key-input" class="config-label">✨ Google Gemini API Key</label>
+                <span id="gemini-key-status-pill" class="badge-status">Smart Synthesizer</span>
+              </div>
+              <div class="config-card-body">
+                <input type="password" id="gemini-api-key-input" class="text-input text-input-xs" placeholder="Paste Gemini Key (AIzaSy...)">
+                <div class="config-card-actions">
+                  <button type="button" class="btn btn-primary btn-xs" id="btn-save-gemini-key">Save Key</button>
+                  <button type="button" class="btn btn-outline btn-xs" id="btn-clear-gemini-key">Remove</button>
+                </div>
+                <span class="field-hint">From <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>. If empty, built-in smart architect synthesizes your plan.</span>
+              </div>
+            </div>
           </div>
         </div>
 

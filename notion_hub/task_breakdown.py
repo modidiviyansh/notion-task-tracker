@@ -44,67 +44,59 @@ PRIORITY_MAP = {
 
 
 def generate_smart_fallback_notes(task_title: str, task_details: str = "") -> str:
-    """Generates an architectural implementation plan when offline or without API key."""
+    """Generates a professional, modular architectural implementation plan."""
     t_lower = (task_title + " " + task_details).lower()
     if any(k in t_lower for k in ["reception", "visitor", "kiosk", "gate", "front desk"]):
         return (
-            "Major Pillars:\n"
-            "1. Core Visitor Architecture & Security Schema\n"
-            "- Design visitor log database models, NDA agreements & migration scripts (3.0h, Backend, P2) — Schema migrations and indexes applied\n"
-            "- Implement host employee automated overstay notification trigger (2.5h, Backend, P3) — Webhook triggers after 4h threshold\n"
-            "\n"
-            "2. Tablet Kiosk & Visitor UX\n"
-            "- Build touchscreen self-registration interface with photo capture (3.5h, Frontend, P2) — Camera preview and instant registration\n"
-            "- Integrate thermal badge printer for QR visitor passes (2.5h, Frontend, P3) — Print job dispatched upon sign-in\n"
-            "\n"
-            "3. Emergency Protocol & Audit Logging\n"
-            "- Real-time host notification dispatch via Google Chat (2.0h, Backend, P2) — Host alerted with visitor snapshot\n"
-            "- One-click evacuation headcount roster for security personnel (1.5h, QA & Security, P4) — Instant exportable headcount table"
+            "Major Pillars:\n\n"
+            "1. Architecture & Security Schemas\n"
+            "- Visitor Schema & NDA Models (2.5h, Backend, P2) — Design Postgres tables, indexes, and encrypted storage for visitor logs & NDA records\n"
+            "- Overstay Event Alert Worker (2.0h, Backend, P2) — Implement automated background worker tracking visit durations and triggering alerts\n\n"
+            "2. Kiosk Experience & Hardware Drivers\n"
+            "- Tablet Touchscreen Check-In UI (3.5h, Frontend, P2) — Build responsive self-registration kiosk with webcam photo capture\n"
+            "- Thermal Badge Printer Integration (2.5h, Frontend, P3) — Generate and dispatch ESC/POS print jobs with scannable QR badge\n\n"
+            "3. Hardening & Emergency Protocol\n"
+            "- Host Google Chat Alert Service (2.0h, Backend, P2) — Dispatch real-time Card v2 notification to host employee upon visitor sign-in\n"
+            "- Emergency Evacuation Headcount Roster (1.5h, QA & Security, P3) — 1-click real-time exportable headcount roster for building safety marshals"
         )
     elif any(k in t_lower for k in ["video", "film", "youtube", "media", "kotak", "bank"]):
         return (
-            "Major Pillars:\n"
-            "1. Scripting & Visual Storyboarding\n"
-            "- Finalize narrative script, hook and compliance sign-off (2.0h, Product, P2) — Approved narrative script\n"
-            "- Create visual storyboard and shot list with banking visual motifs (2.5h, Design, P3) — Shot breakdown with timing\n"
-            "\n"
+            "Major Pillars:\n\n"
+            "1. Narrative & Visual Storyboarding\n"
+            "- Narrative Script & Compliance Review (2.0h, Product, P2) — Finalize messaging, hook, and regulatory compliance clearance\n"
+            "- Visual Storyboard & Shot List (2.5h, Design, P3) — Produce scene-by-scene framing guide with corporate banking motifs\n\n"
             "2. Video Assembly & Motion Graphics\n"
-            "- Assemble A-roll interview footage and sync multitrack audio (3.5h, Design, P2) — Rough cut timeline completed\n"
-            "- Build 2D motion graphics, brand title cards and lower-thirds (3.0h, Design, P3) — Brand kit animations rendered\n"
-            "\n"
-            "3. Sound Design & Multi-Platform Mastering\n"
-            "- Audio balancing, dialogue clarity normalization and music bed (1.5h, Design, P3) — Broadcast standard loudness\n"
-            "- High-bitrate 4K rendering and YouTube/social cuts export (1.5h, DevOps & Infra, P4) — Multi-aspect ratio deliverables"
+            "- A-Roll Assembly & Multitrack Sync (3.5h, Design, P2) — Assemble rough timeline cut with synchronized dialogue and B-roll\n"
+            "- Brand Motion Graphics & Lower-Thirds (3.0h, Design, P3) — Render animated brand title cards, lower-thirds, and transitions\n\n"
+            "3. Sound Design & Master Delivery\n"
+            "- Dialogue Balancing & Master Mix (1.5h, Design, P3) — Normalize vocal clarity to broadcast loudness standards\n"
+            "- High-Bitrate Multi-Platform Export (1.5h, DevOps & Infra, P4) — Render optimized 4K master and social cuts"
         )
-    elif any(k in t_lower for k in ["dashboard", "metric", "report", "upload", "chart"]):
+    elif any(k in t_lower for k in ["dashboard", "metric", "report", "upload", "chart", "form"]):
         return (
-            "Major Pillars:\n"
-            "1. Data Ingestion & Calculation Engine\n"
-            "- Build resilient file upload endpoint with schema validation (3.0h, Backend, P2) — Multi-format file intake\n"
-            "- Implement metric rollup formulas, weighted scores and caching (3.0h, Backend, P2) — Sub-100ms analytics retrieval\n"
-            "\n"
-            "2. Responsive Visualization & Controls\n"
-            "- Design glassmorphic KPI cards grid and interactive charts (3.5h, Frontend, P2) — Dynamic Chart.js visualizations\n"
-            "- Implement date range filters, column search and CSV exporter (2.5h, Frontend, P3) — Instant filtering & export\n"
-            "\n"
-            "3. Cross-Browser QA & Permission Scopes\n"
-            "- Role-based view access control and data redaction (2.0h, QA & Security, P3) — RBAC permissions verified\n"
-            "- Responsive viewport polish across mobile, tablet and desktop (1.5h, Frontend, P4) — Zero layout shifts"
+            "Major Pillars:\n\n"
+            "1. Ingestion & Calculation Engine\n"
+            "- Multi-Format File Intake Endpoint (3.0h, Backend, P2) — Build resilient upload endpoint with schema validation and sanitization\n"
+            "- Metric Rollup & Weighted Caching (3.0h, Backend, P2) — Implement aggregation formulas, percentile ranking, and in-memory cache\n\n"
+            "2. Visualization & Interactive Controls\n"
+            "- Glassmorphic KPI Grid & Charts (3.5h, Frontend, P2) — Render dynamic Chart.js visualizations with responsive breakpoints\n"
+            "- Column Filter & CSV Exporter (2.0h, Frontend, P3) — Implement multi-horizon filtering, search, and client-side data export\n\n"
+            "3. Security & Cross-Device Hardening\n"
+            "- Role-Based Scope Permissions (2.0h, QA & Security, P3) — Verify RBAC restrictions, sensitive metric masking, and audit logging\n"
+            "- Cross-Browser Layout Polish (1.5h, Frontend, P4) — Verify responsive behavior across mobile, tablet, and desktop viewports"
         )
     else:
         return (
-            f"Major Pillars:\n"
-            f"1. Core Architecture & Backend Services\n"
-            f"- Define domain data models, validation schemas and API endpoints for {task_title} (3.5h, Backend, P2) — Complete CRUD API specs\n"
-            f"- Implement business logic engine, error handling and event logging (3.0h, Backend, P2) — Resilient error handling\n"
-            f"\n"
-            f"2. User Interface & Interactive Experience\n"
-            f"- Build responsive UI components, state management and data tables (3.5h, Frontend, P2) — Clean interactive workflow\n"
-            f"- Add user feedback toasts, progress indicators and loading states (2.0h, Frontend, P3) — Intuitive micro-interactions\n"
-            f"\n"
-            f"3. Verification, Security & Deployment\n"
-            f"- Write automated unit and integration test suite (2.0h, QA & Security, P3) — 85%+ coverage on critical paths\n"
-            f"- Configure CI/CD deployment pipeline and monitoring alerts (1.5h, DevOps & Infra, P4) — Staging verification complete"
+            f"Major Pillars:\n\n"
+            f"1. Core Architecture & Specifications\n"
+            f"- Data Schema & API Contract (3.0h, Backend, P2) — Define normalized database entities, migrations, and CRUD API specs for {task_title}\n"
+            f"- Core Logic Engine & Validation (3.0h, Backend, P2) — Implement core business logic, input validation, and structured error handling\n\n"
+            f"2. Interactive UI & User Workflow\n"
+            f"- Responsive Component Views (3.5h, Frontend, P2) — Build interactive dashboard views, forms, and responsive data tables\n"
+            f"- User Feedback & Loading States (2.0h, Frontend, P3) — Implement progress toasts, micro-interactions, and optimistic state updates\n\n"
+            f"3. Hardening, QA & Delivery\n"
+            f"- Integration & Edge Case Test Suite (2.0h, QA & Security, P3) — Write automated test coverage for critical paths and failure modes\n"
+            f"- CI/CD Pipeline & Staging Verification (1.5h, DevOps & Infra, P4) — Deploy to staging environment, verify health check, and tag release"
         )
 
 
@@ -115,9 +107,8 @@ def generate_breakdown_notes_with_gemini(
     model: str = "gemini-1.5-flash"
 ) -> str:
     """
-    Uses Google Gemini (Gemini 1.5 Flash / 2.0 Flash) to draft an implementation plan,
-    major architectural pillars, and sized subtask steps for a deliverable.
-    Falls back gracefully to smart domain synthesis if no key is provided.
+    Uses Google Gemini to draft a high-caliber technical implementation plan,
+    major architectural pillars, and sized subtasks.
     """
     key = api_key or os.getenv("GEMINI_API_KEY", "").strip()
 
@@ -127,25 +118,28 @@ def generate_breakdown_notes_with_gemini(
     endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
 
     prompt = (
-        f"You are an expert technical product manager and software architect.\n"
-        f"Break down the following project deliverable into a concrete, actionable implementation plan:\n"
-        f"Deliverable Title: '{task_title}'\n"
-        f"Context / Details: '{task_details or 'None provided'}'\n\n"
-        f"Format your response strictly using this format (do NOT wrap in markdown code blocks):\n"
-        f"Major Pillars:\n"
+        f"You are a Principal Software Architect and Technical Lead.\n"
+        f"Break down the project deliverable into a clean, modular, and professional engineering plan.\n\n"
+        f"Deliverable: '{task_title}'\n"
+        f"Context / Notes: '{task_details or 'Full-stack production feature'}'\n\n"
+        f"Format your response strictly using this Markdown template (do NOT wrap in code blocks):\n\n"
+        f"Major Pillars:\n\n"
         f"1. <Pillar 1 Name>\n"
-        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>\n"
-        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>\n\n"
+        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Crisp Acceptance Criteria / Definition of Done>\n"
+        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Crisp Acceptance Criteria / Definition of Done>\n\n"
         f"2. <Pillar 2 Name>\n"
-        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>\n"
-        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>\n\n"
+        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Crisp Acceptance Criteria / Definition of Done>\n"
+        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Crisp Acceptance Criteria / Definition of Done>\n\n"
         f"3. <Pillar 3 Name>\n"
-        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>\n\n"
-        f"Requirements:\n"
-        f"- Subtasks must be concrete, technical and sized (between 1.0h and 5.0h each, e.g. 2h, 3.5h).\n"
-        f"- Pod must be one of: Backend, Frontend, DevOps & Infra, Design, QA & Security, Product.\n"
-        f"- Priority must be one of: P1, P2, P3, P4.\n"
-        f"- Include 4 to 6 total subtasks across 2 to 3 major pillars.\n"
+        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Crisp Acceptance Criteria / Definition of Done>\n\n"
+        f"Strict Guidelines for Senior-Engineer Quality:\n"
+        f"1. Subtask Title MUST be 3 to 6 words maximum. Keep it clean and punchy (e.g. 'Visitor Schema & NDA Models', NOT 'Design visitor log database models, NDA agreements and migration scripts').\n"
+        f"2. NEVER prefix or repeat the parent deliverable name in the subtask title.\n"
+        f"3. Estimated hours must be realistic: between 1.5h and 4.0h each (e.g., 2h, 2.5h, 3.5h).\n"
+        f"4. Pod MUST be one of: Backend, Frontend, DevOps & Infra, Design, QA & Security, Product.\n"
+        f"5. Priority MUST be one of: P1, P2, P3, P4.\n"
+        f"6. Acceptance criteria after the em-dash '—' must be exactly one clear, technical sentence stating what makes it Done.\n"
+        f"7. Provide 4 to 6 total subtasks across 2 to 3 major pillars.\n"
     )
 
     req_body = {
@@ -157,7 +151,7 @@ def generate_breakdown_notes_with_gemini(
             }
         ],
         "generationConfig": {
-            "temperature": 0.4,
+            "temperature": 0.35,
             "maxOutputTokens": 1024
         }
     }
@@ -176,7 +170,6 @@ def generate_breakdown_notes_with_gemini(
                 parts = candidates[0].get("content", {}).get("parts", [])
                 if parts:
                     raw_text = parts[0].get("text", "").strip()
-                    # Strip markdown code fences if model enclosed it
                     raw_text = re.sub(r'^```(?:markdown)?\s*', '', raw_text)
                     raw_text = re.sub(r'\s*```$', '', raw_text)
                     return raw_text.strip()
@@ -255,12 +248,31 @@ def parse_notes_into_subtasks(
                 pod = v
                 break
 
+        # Separate title from acceptance criteria using em-dash '—', '--', or ':'
+        criteria = ""
+        if "—" in raw_text:
+            parts = raw_text.split("—", 1)
+            raw_title, criteria = parts[0].strip(), parts[1].strip()
+        elif " -- " in raw_text:
+            parts = raw_text.split(" -- ", 1)
+            raw_title, criteria = parts[0].strip(), parts[1].strip()
+        elif ":" in raw_text and not re.search(r'\b(?:http|https):', raw_text):
+            parts = raw_text.split(":", 1)
+            raw_title, criteria = parts[0].strip(), parts[1].strip()
+        else:
+            raw_title = raw_text
+
         # Clean subtask title by removing parenthetical metadata like "(3h, Backend, P2)"
-        clean_title = re.sub(r'[\(\[].*?[\)\]]', '', raw_text).strip()
-        clean_title = re.sub(r'\s+', ' ', clean_title).strip(' -:')
+        clean_title = re.sub(r'[\(\[].*?[\)\]]', '', raw_title).strip()
+        clean_title = re.sub(r'\s+', ' ', clean_title).strip(' -:•')
 
         if not clean_title:
-            clean_title = raw_text[:50]
+            clean_title = raw_title[:45].strip(' -:•')
+
+        # Clean criteria string
+        criteria = re.sub(r'[\(\[].*?[\)\]]', '', criteria).strip(' -:•')
+        if not criteria:
+            criteria = f"Verified implementation of {clean_title} under {current_pillar}."
 
         # Determine subtask complexity
         if hours <= 2.0:
@@ -271,14 +283,14 @@ def parse_notes_into_subtasks(
             comp = "⭐⭐⭐ 3 - Moderate"
 
         subtasks.append({
-            "title": f"{parent_title} — {clean_title}",
+            "title": clean_title,
             "short_title": clean_title,
             "estimated_hours": hours,
             "priority": prio,
             "team": pod,
             "complexity": comp,
             "pillar": current_pillar,
-            "acceptance_criteria": f"Pillar: {current_pillar} • Deliverable: {clean_title}"
+            "acceptance_criteria": criteria
         })
 
     # Determine overall parent deliverable complexity

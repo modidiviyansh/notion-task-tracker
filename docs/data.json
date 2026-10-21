@@ -1,50 +1,80 @@
 {
-  "generated_at": "2026-10-20 19:58:03 UTC",
-  "total_tasks": 11,
-  "total_pending": 10,
-  "total_debt_pts": 1825,
+  "generated_at": "2026-10-21 12:31:44 UTC",
+  "total_tasks": 13,
+  "total_pending": 11,
+  "total_debt_pts": 2025,
   "total_est_hours": 0.0,
   "status_counts": {
     "To Do": 5,
-    "In Progress": 2,
-    "In Review": 1,
-    "Backlog": 2,
-    "Done": 1
+    "In Progress": 0,
+    "In Review": 0,
+    "Backlog": 6,
+    "Done": 2
   },
   "priority_counts": {
     "P1 - Urgent": 2,
     "P2 - High": 1,
-    "P3 - Medium": 5,
+    "P3 - Medium": 7,
     "P4 - Low": 3
   },
   "completed_horizons": {
-    "7d": 1,
-    "15d": 1,
-    "30d": 1
+    "7d": 2,
+    "15d": 2,
+    "30d": 2
   },
   "assignee_summary": {
     "Unassigned": {
-      "total": 7,
+      "total": 9,
       "done": 1,
-      "in_progress": 1,
-      "backlog": 5
+      "in_progress": 0,
+      "backlog": 8
     },
     "karanveer": {
       "total": 4,
-      "done": 0,
-      "in_progress": 1,
+      "done": 1,
+      "in_progress": 0,
       "backlog": 3
     },
     "Diviyansh Modi": {
       "total": 1,
-      "done": 0,
+      "done": 1,
       "in_progress": 0,
-      "backlog": 1
+      "backlog": 0
     }
   },
   "accountability_score": 82,
   "rating_label": "\ud83d\udfe2 Healthy Cadence",
   "tasks": [
+    {
+      "id": "400f1bcf-f9b8-81b8-9d2d-ca1613ccdcbf",
+      "title": "Implementation SIS Marks Templatization",
+      "status": "To Do",
+      "priority": "P3 - Medium",
+      "assignees": [
+        "Unassigned"
+      ],
+      "due_date": "2026-10-30",
+      "completed_at": null,
+      "estimated_hours": 0.0,
+      "progress_bar": "\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 20%",
+      "progress_val": 20,
+      "url": "https://app.notion.com/p/Implementation-SIS-Marks-Templatization-400f1bcff9b881b89d2dca1613ccdcbf"
+    },
+    {
+      "id": "400f1bcf-f9b8-8082-a6c0-f68224f62e4a",
+      "title": "Fees Accountabilty & Handling",
+      "status": "Backlog",
+      "priority": "P3 - Medium",
+      "assignees": [
+        "Unassigned"
+      ],
+      "due_date": "No Due Date",
+      "completed_at": null,
+      "estimated_hours": 0.0,
+      "progress_bar": "\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 0%",
+      "progress_val": 0,
+      "url": "https://app.notion.com/p/Fees-Accountabilty-Handling-400f1bcff9b88082a6c0f68224f62e4a"
+    },
     {
       "id": "3fff1bcf-f9b8-8006-b342-dcacf664ad27",
       "title": "Sample Tasks",
@@ -63,7 +93,7 @@
     {
       "id": "3fff1bcf-f9b8-8087-a116-d2f24c103203",
       "title": "Kotak Mahindra Bank Video",
-      "status": "In Progress",
+      "status": "Backlog",
       "priority": "P2 - High",
       "assignees": [
         "karanveer"
@@ -71,8 +101,8 @@
       "due_date": "2026-10-20",
       "completed_at": null,
       "estimated_hours": 0.0,
-      "progress_bar": "\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1 60%",
-      "progress_val": 60,
+      "progress_bar": "\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 0%",
+      "progress_val": 0,
       "url": "https://app.notion.com/p/Kotak-Mahindra-Bank-Video-3fff1bcff9b88087a116d2f24c103203"
     },
     {
@@ -153,7 +183,7 @@
     {
       "id": "3fff1bcf-f9b8-80c2-b626-e94723dbd476",
       "title": "Google Chat",
-      "status": "In Progress",
+      "status": "Backlog",
       "priority": "P4 - Low",
       "assignees": [
         "Unassigned"
@@ -161,14 +191,14 @@
       "due_date": "2026-10-20",
       "completed_at": null,
       "estimated_hours": 0.0,
-      "progress_bar": "\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1 60%",
-      "progress_val": 60,
+      "progress_bar": "\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 0%",
+      "progress_val": 0,
       "url": "https://app.notion.com/p/Google-Chat-3fff1bcff9b880c2b626e94723dbd476"
     },
     {
       "id": "3fff1bcf-f9b8-8028-8937-c4b038bde917",
       "title": "Dashboarding Form for Various Uploads",
-      "status": "To Do",
+      "status": "Backlog",
       "priority": "P1 - Urgent",
       "assignees": [
         "karanveer"
@@ -176,24 +206,24 @@
       "due_date": "2026-10-20",
       "completed_at": null,
       "estimated_hours": 0.0,
-      "progress_bar": "\u25a0\u25a0\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 20%",
-      "progress_val": 20,
+      "progress_bar": "\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1\u25a1 0%",
+      "progress_val": 0,
       "url": "https://app.notion.com/p/Dashboarding-Form-for-Various-Uploads-3fff1bcff9b880288937c4b038bde917"
     },
     {
       "id": "3fff1bcf-f9b8-80cd-bb36-c30cce8eab2a",
       "title": "Notion",
-      "status": "In Review",
+      "status": "Done",
       "priority": "P4 - Low",
       "assignees": [
         "karanveer",
         "Diviyansh Modi"
       ],
       "due_date": "2026-10-20",
-      "completed_at": null,
+      "completed_at": "2026-10-21",
       "estimated_hours": 0.0,
-      "progress_bar": "\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a1\u25a1 80%",
-      "progress_val": 80,
+      "progress_bar": "\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0\u25a0 100%",
+      "progress_val": 100,
       "url": "https://app.notion.com/p/Notion-3fff1bcff9b880cdbb36c30cce8eab2a"
     },
     {

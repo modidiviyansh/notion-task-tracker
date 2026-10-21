@@ -12,7 +12,7 @@ import sys
 import json
 import re
 from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from .client import NotionClient, NotionError
 
 DIVIYANSH_USER_ID = "2cbd872b-594c-81cb-8330-00028fbf1dd5"

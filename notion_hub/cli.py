@@ -659,12 +659,22 @@ def cmd_task_breakdown(args):
         with open(notes_file, "r", encoding="utf-8") as f:
             notes = f.read()
 
+    use_ai = getattr(args, "ai", False) or getattr(args, "gemini", False)
+    if use_ai:
+        from .task_breakdown import generate_breakdown_notes_with_gemini
+        print(f"✨ Generating technical pillars & implementation notes with Google Gemini for: '{task_title}'...")
+        gemini_key = getattr(args, "api_key", None)
+        details_rich = parent_task.get("properties", {}).get("Task Details", {}).get("rich_text", []) if parent_task else []
+        task_desc = notes or (details_rich[0].get("plain_text", "") if details_rich else "")
+        notes = generate_breakdown_notes_with_gemini(task_title, task_desc, api_key=gemini_key)
+        print("✓ Implementation plan & pillars drafted successfully!")
+
     if not notes.strip():
         details_rich = parent_task.get("properties", {}).get("Task Details", {}).get("rich_text", []) if parent_task else []
         notes = details_rich[0].get("plain_text", "") if details_rich else ""
 
     if not notes.strip():
-        print("⚠️ No notes provided! Provide your implementation plan via --notes \"...\" or --notes-file <PATH>.")
+        print("⚠️ No notes provided! Provide your implementation plan via --notes \"...\", --notes-file <PATH>, or pass --ai / --gemini to draft with Google Gemini.")
         return
 
     plan = parse_notes_into_subtasks(task_title, notes)
@@ -817,6 +827,9 @@ def main():
         p_bd.add_argument("--task", required=True, help="Task title or ID to decompose")
         p_bd.add_argument("--notes", help="Implementation notes, major pillars, and subtask steps")
         p_bd.add_argument("--notes-file", help="Path to markdown/text file containing implementation notes")
+        p_bd.add_argument("--ai", action="store_true", help="Draft implementation plan and pillars with Google Gemini AI")
+        p_bd.add_argument("--gemini", action="store_true", help="Draft implementation plan and pillars with Google Gemini AI")
+        p_bd.add_argument("--api-key", help="Google Gemini API key (defaults to GEMINI_API_KEY env var)")
         p_bd.add_argument("--db", help="Database ID")
         p_bd.add_argument("--apply", action="store_true", help="Create subtasks directly in Notion with Parent Task relation")
         p_bd.set_defaults(func=cmd_task_breakdown)

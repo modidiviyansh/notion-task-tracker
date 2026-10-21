@@ -65,15 +65,18 @@ python3 -m notion_hub.cli create-doc --parent <PAGE_ID> --title "System Architec
 python3 -m notion_hub.cli append --page <PAGE_ID> --content "### Progress Update\n- Integrated database layer"
 ```
 
-### 6. Deliverable Decomposition Studio (Human-Directed Notes-to-Subtasks)
+### 6. Deliverable Decomposition Studio (Google Gemini AI + Notes-to-Subtasks)
 ```bash
-# Preview parsing notes into structured subtasks (dry run)
-python3 -m notion_hub.cli decompose --task "Reception Management System" --notes-file "plan.md"
+# Automatically draft implementation plan & major pillars using Google Gemini (dry run)
+python3 -m notion_hub.cli decompose --task "Reception Management System" --ai
 
-# Apply subtasks directly to Notion (with Parent Task link & plan notes appended to parent page)
+# Draft with Gemini and apply subtasks directly to Notion (with Parent Task link)
+python3 -m notion_hub.cli decompose --task "Reception Management System" --ai --apply
+
+# Or parse your own custom implementation notes file
 python3 -m notion_hub.cli decompose --task "Reception Management System" --notes-file "plan.md" --apply
 ```
-> **Note**: You can also use the interactive **Decomposition Studio** right on the GitHub Pages live dashboard to select any deliverable, write pillars/steps in the "Notes Thingy", review the cards, and create them directly into Notion.
+> **Live Web Dashboard Integration**: Open the **Decomposition Studio** on your GitHub Pages dashboard (`docs/`), select any deliverable, and click **`✨ AI Draft with Gemini`**. It populates your editable **"Notes Thingy"** with major pillars and sized subtasks. You can review, refine, and click **`🚀 Create Subtasks in Notion`** with `Parent Task = Original Task`. Optional: Click **`🔑 Gemini Key`** in the dashboard to store your private Google AI Studio key in browser `localStorage`.
 
 ### 7. Initialize a Full Project Hub
 ```bash

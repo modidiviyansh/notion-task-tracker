@@ -218,16 +218,37 @@
       <!-- Step 2: Implementation Plan & Major Pillars Workspace ("Notes Thingy") -->
       <div class="decomp-notes-container">
         <div class="decomp-notes-header">
-          <label for="decomp-notes-textarea" class="field-label">2. Implementation Plan, Major Pillars & Subtask Steps</label>
+          <label for="decomp-notes-textarea" class="field-label">2. Implementation Plan, Major Pillars & Subtask Steps ("Notes Thingy")</label>
           <div class="decomp-notes-tools">
+            <button type="button" class="btn btn-primary btn-xs" id="btn-ai-draft-gemini" title="Use Google Gemini to automatically draft implementation plan and major pillars into notes">
+              ✨ AI Draft with Gemini
+            </button>
+            <button type="button" class="btn btn-outline btn-xs" id="btn-toggle-gemini-key" title="Configure Google Gemini API Key">
+              🔑 Gemini Key
+            </button>
             <button type="button" class="btn btn-outline btn-xs" id="btn-insert-template">
-              📋 Insert Blueprint Template
+              📋 Blueprint Template
             </button>
             <button type="button" class="btn btn-outline btn-xs" id="btn-clear-notes">
               🧹 Clear
             </button>
           </div>
         </div>
+
+        <!-- Collapsible Gemini Key Configuration Box -->
+        <div id="gemini-key-box" class="gemini-key-box" style="display:none;">
+          <div class="gemini-key-inner">
+            <span class="gemini-key-title">🔑 Gemini API Key:</span>
+            <input type="password" id="gemini-api-key-input" class="text-input text-input-xs" placeholder="Paste Gemini API key (AIzaSy...)" style="flex:1; max-width:320px;">
+            <button type="button" class="btn btn-primary btn-xs" id="btn-save-gemini-key">Save</button>
+            <button type="button" class="btn btn-outline btn-xs" id="btn-clear-gemini-key">Remove</button>
+            <span id="gemini-key-status" class="gemini-key-status"></span>
+          </div>
+          <div class="gemini-hint">
+            💡 Free API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>. Stored locally in your browser. When left empty, built-in smart architecture synthesis drafts your plan.
+          </div>
+        </div>
+
         <textarea id="decomp-notes-textarea" class="text-input textarea-notes" rows="7" placeholder="Write or paste your implementation notes here. Organize by pillars and bullet steps:
 
 Major Pillars:

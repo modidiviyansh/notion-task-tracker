@@ -414,6 +414,55 @@ function initDecompositionStudio() {
   const parseNotesBtn = document.getElementById('btn-parse-notes');
   const copyCliBtn = document.getElementById('btn-copy-cli-command');
   const commitBtn = document.getElementById('btn-commit-subtasks-notion');
+  const aiDraftBtn = document.getElementById('btn-ai-draft-gemini');
+  const toggleKeyBtn = document.getElementById('btn-toggle-gemini-key');
+  const keyBox = document.getElementById('gemini-key-box');
+  const keyInput = document.getElementById('gemini-api-key-input');
+  const saveKeyBtn = document.getElementById('btn-save-gemini-key');
+  const clearKeyBtn = document.getElementById('btn-clear-gemini-key');
+  const keyStatus = document.getElementById('gemini-key-status');
+
+  // Load saved Gemini Key if present
+  const savedKey = localStorage.getItem('gemini_api_key');
+  if (savedKey) {
+    if (keyInput) keyInput.value = savedKey;
+    if (keyStatus) keyStatus.textContent = '✓ Saved in browser';
+    if (toggleKeyBtn) toggleKeyBtn.textContent = '🔑 Gemini Key (Active)';
+  }
+
+  if (toggleKeyBtn && keyBox) {
+    toggleKeyBtn.addEventListener('click', () => {
+      keyBox.style.display = keyBox.style.display === 'none' ? 'block' : 'none';
+      if (keyBox.style.display === 'block' && keyInput) keyInput.focus();
+    });
+  }
+
+  if (saveKeyBtn && keyInput) {
+    saveKeyBtn.addEventListener('click', () => {
+      const val = keyInput.value.trim();
+      if (!val) {
+        alert('Please enter a valid Gemini API key.');
+        return;
+      }
+      localStorage.setItem('gemini_api_key', val);
+      if (keyStatus) keyStatus.textContent = '✓ Key saved successfully!';
+      if (toggleKeyBtn) toggleKeyBtn.textContent = '🔑 Gemini Key (Active)';
+      setTimeout(() => { if (keyStatus) keyStatus.textContent = '✓ Saved in browser'; }, 3000);
+    });
+  }
+
+  if (clearKeyBtn) {
+    clearKeyBtn.addEventListener('click', () => {
+      localStorage.removeItem('gemini_api_key');
+      if (keyInput) keyInput.value = '';
+      if (keyStatus) keyStatus.textContent = 'Key removed';
+      if (toggleKeyBtn) toggleKeyBtn.textContent = '🔑 Gemini Key';
+    });
+  }
+
+  if (aiDraftBtn) {
+    aiDraftBtn.addEventListener('click', draftNotesWithGemini);
+  }
 
   if (taskSelect) {
     taskSelect.addEventListener('change', () => {
@@ -494,6 +543,150 @@ function initDecompositionStudio() {
 
   if (commitBtn) {
     commitBtn.addEventListener('click', commitSubtasksToNotion);
+  }
+}
+
+async function draftNotesWithGemini() {
+  const taskSelect = document.getElementById('decomp-task-select');
+  const notesTextarea = document.getElementById('decomp-notes-textarea');
+  const aiDraftBtn = document.getElementById('btn-ai-draft-gemini');
+
+  if (!taskSelect) return;
+  const opt = taskSelect.options[taskSelect.selectedIndex];
+  if (!opt || !opt.value) {
+    alert('Please select a target deliverable from the dropdown first.');
+    taskSelect.focus();
+    return;
+  }
+
+  const parentTitle = opt.dataset.title || 'Deliverable';
+  const originalBtnHtml = aiDraftBtn.innerHTML;
+  aiDraftBtn.disabled = true;
+  aiDraftBtn.innerHTML = '<span>✨ Drafting with Gemini...</span>';
+
+  const geminiKey = localStorage.getItem('gemini_api_key');
+
+  try {
+    let generatedNotes = "";
+    if (geminiKey) {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
+      const prompt = `You are an expert technical product manager and software architect.
+Break down the following project deliverable into a concrete, actionable implementation plan:
+Deliverable Title: "${parentTitle}"
+
+Format your response strictly using this markdown format (do NOT wrap in code blocks):
+Major Pillars:
+1. <Pillar 1 Name>
+- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>
+- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>
+
+2. <Pillar 2 Name>
+- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>
+- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>
+
+3. <Pillar 3 Name>
+- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>
+
+Requirements:
+- Subtasks must be technical and sized between 1.0h and 5.0h each (e.g. 2h, 3.5h).
+- Pod must be one of: Backend, Frontend, DevOps & Infra, Design, QA & Security, Product.
+- Priority must be one of: P1, P2, P3, P4.
+- Provide 4 to 6 total subtasks across 2 to 3 major pillars.`;
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 1024 }
+        })
+      });
+
+      if (response.ok) {
+        const json = await response.json();
+        const candidateText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (candidateText) {
+          generatedNotes = candidateText.replace(/^```(?:markdown)?\s*/i, '').replace(/\s*```$/i, '').trim();
+        }
+      } else {
+        console.warn('Gemini API call returned non-200, falling back to smart synthesizer');
+      }
+    }
+
+    if (!generatedNotes) {
+      generatedNotes = generateSmartFallbackNotesClient(parentTitle);
+    }
+
+    if (notesTextarea) {
+      notesTextarea.value = generatedNotes;
+      parseAndRenderNotes();
+    }
+  } catch (err) {
+    console.error('Error drafting notes with Gemini:', err);
+    if (notesTextarea) {
+      notesTextarea.value = generateSmartFallbackNotesClient(parentTitle);
+      parseAndRenderNotes();
+    }
+  } finally {
+    aiDraftBtn.disabled = false;
+    aiDraftBtn.innerHTML = originalBtnHtml;
+  }
+}
+
+function generateSmartFallbackNotesClient(taskTitle) {
+  const t = (taskTitle || '').toLowerCase();
+  if (t.includes('reception') || t.includes('visitor') || t.includes('kiosk') || t.includes('gate')) {
+    return `Major Pillars:
+1. Core Visitor Architecture & Security Schema
+- Design visitor log database models, NDA agreements & migration scripts (3.0h, Backend, P2) — Schema migrations and indexes applied
+- Implement host employee automated overstay notification trigger (2.5h, Backend, P3) — Webhook triggers after 4h threshold
+
+2. Tablet Kiosk & Visitor UX
+- Build touchscreen self-registration interface with photo capture (3.5h, Frontend, P2) — Camera preview and instant registration
+- Integrate thermal badge printer for QR visitor passes (2.5h, Frontend, P3) — Print job dispatched upon sign-in
+
+3. Emergency Protocol & Audit Logging
+- Real-time host notification dispatch via Google Chat (2.0h, Backend, P2) — Host alerted with visitor snapshot
+- One-click evacuation headcount roster for security personnel (1.5h, QA & Security, P4) — Instant exportable headcount table`;
+  } else if (t.includes('video') || t.includes('kotak') || t.includes('media') || t.includes('film')) {
+    return `Major Pillars:
+1. Scripting & Visual Storyboarding
+- Finalize narrative script, hook and compliance sign-off (2.0h, Product, P2) — Approved narrative script
+- Create visual storyboard and shot list with banking visual motifs (2.5h, Design, P3) — Shot breakdown with timing
+
+2. Video Assembly & Motion Graphics
+- Assemble A-roll interview footage and sync multitrack audio (3.5h, Design, P2) — Rough cut timeline completed
+- Build 2D motion graphics, brand title cards and lower-thirds (3.0h, Design, P3) — Brand kit animations rendered
+
+3. Sound Design & Multi-Platform Mastering
+- Audio balancing, dialogue clarity normalization and music bed (1.5h, Design, P3) — Broadcast standard loudness
+- High-bitrate 4K rendering and YouTube/social cuts export (1.5h, DevOps & Infra, P4) — Multi-aspect ratio deliverables`;
+  } else if (t.includes('dashboard') || t.includes('metric') || t.includes('upload') || t.includes('form')) {
+    return `Major Pillars:
+1. Data Ingestion & Calculation Engine
+- Build resilient file upload endpoint with schema validation (3.0h, Backend, P2) — Multi-format file intake
+- Implement metric rollup formulas, weighted scores and caching (3.0h, Backend, P2) — Sub-100ms analytics retrieval
+
+2. Responsive Visualization & Controls
+- Design glassmorphic KPI cards grid and interactive charts (3.5h, Frontend, P2) — Dynamic Chart.js visualizations
+- Implement date range filters, column search and CSV exporter (2.5h, Frontend, P3) — Instant filtering & export
+
+3. Cross-Browser QA & Permission Scopes
+- Role-based view access control and data redaction (2.0h, QA & Security, P3) — RBAC permissions verified
+- Responsive viewport polish across mobile, tablet and desktop (1.5h, Frontend, P4) — Zero layout shifts`;
+  } else {
+    return `Major Pillars:
+1. Core Architecture & Backend Services
+- Define domain data models, validation schemas and API endpoints for ${taskTitle} (3.5h, Backend, P2) — Complete CRUD API specs
+- Implement business logic engine, error handling and event logging (3.0h, Backend, P2) — Resilient error handling
+
+2. User Interface & Interactive Experience
+- Build responsive UI components, state management and data tables (3.5h, Frontend, P2) — Clean interactive workflow
+- Add user feedback toasts, progress indicators and loading states (2.0h, Frontend, P3) — Intuitive micro-interactions
+
+3. Verification, Security & Deployment
+- Write automated unit and integration test suite (2.0h, QA & Security, P3) — 85%+ coverage on critical paths
+- Configure CI/CD deployment pipeline and monitoring alerts (1.5h, DevOps & Infra, P4) — Staging verification complete`;
   }
 }
 

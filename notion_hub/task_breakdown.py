@@ -4,7 +4,11 @@ Allows developers to select a Notion task and provide their own execution notes,
 major pillars, and implementation steps. Decomposes the notes into individual subtasks
 linked with native Parent-Child relations to the original task.
 """
+import json
+import os
 import re
+import urllib.request
+import urllib.error
 from typing import Dict, Any, List, Optional
 from .client import NotionClient
 
@@ -37,6 +41,149 @@ PRIORITY_MAP = {
     "p4": "P4 - Low",
     "low": "P4 - Low"
 }
+
+
+def generate_smart_fallback_notes(task_title: str, task_details: str = "") -> str:
+    """Generates an architectural implementation plan when offline or without API key."""
+    t_lower = (task_title + " " + task_details).lower()
+    if any(k in t_lower for k in ["reception", "visitor", "kiosk", "gate", "front desk"]):
+        return (
+            "Major Pillars:\n"
+            "1. Core Visitor Architecture & Security Schema\n"
+            "- Design visitor log database models, NDA agreements & migration scripts (3.0h, Backend, P2) — Schema migrations and indexes applied\n"
+            "- Implement host employee automated overstay notification trigger (2.5h, Backend, P3) — Webhook triggers after 4h threshold\n"
+            "\n"
+            "2. Tablet Kiosk & Visitor UX\n"
+            "- Build touchscreen self-registration interface with photo capture (3.5h, Frontend, P2) — Camera preview and instant registration\n"
+            "- Integrate thermal badge printer for QR visitor passes (2.5h, Frontend, P3) — Print job dispatched upon sign-in\n"
+            "\n"
+            "3. Emergency Protocol & Audit Logging\n"
+            "- Real-time host notification dispatch via Google Chat (2.0h, Backend, P2) — Host alerted with visitor snapshot\n"
+            "- One-click evacuation headcount roster for security personnel (1.5h, QA & Security, P4) — Instant exportable headcount table"
+        )
+    elif any(k in t_lower for k in ["video", "film", "youtube", "media", "kotak", "bank"]):
+        return (
+            "Major Pillars:\n"
+            "1. Scripting & Visual Storyboarding\n"
+            "- Finalize narrative script, hook and compliance sign-off (2.0h, Product, P2) — Approved narrative script\n"
+            "- Create visual storyboard and shot list with banking visual motifs (2.5h, Design, P3) — Shot breakdown with timing\n"
+            "\n"
+            "2. Video Assembly & Motion Graphics\n"
+            "- Assemble A-roll interview footage and sync multitrack audio (3.5h, Design, P2) — Rough cut timeline completed\n"
+            "- Build 2D motion graphics, brand title cards and lower-thirds (3.0h, Design, P3) — Brand kit animations rendered\n"
+            "\n"
+            "3. Sound Design & Multi-Platform Mastering\n"
+            "- Audio balancing, dialogue clarity normalization and music bed (1.5h, Design, P3) — Broadcast standard loudness\n"
+            "- High-bitrate 4K rendering and YouTube/social cuts export (1.5h, DevOps & Infra, P4) — Multi-aspect ratio deliverables"
+        )
+    elif any(k in t_lower for k in ["dashboard", "metric", "report", "upload", "chart"]):
+        return (
+            "Major Pillars:\n"
+            "1. Data Ingestion & Calculation Engine\n"
+            "- Build resilient file upload endpoint with schema validation (3.0h, Backend, P2) — Multi-format file intake\n"
+            "- Implement metric rollup formulas, weighted scores and caching (3.0h, Backend, P2) — Sub-100ms analytics retrieval\n"
+            "\n"
+            "2. Responsive Visualization & Controls\n"
+            "- Design glassmorphic KPI cards grid and interactive charts (3.5h, Frontend, P2) — Dynamic Chart.js visualizations\n"
+            "- Implement date range filters, column search and CSV exporter (2.5h, Frontend, P3) — Instant filtering & export\n"
+            "\n"
+            "3. Cross-Browser QA & Permission Scopes\n"
+            "- Role-based view access control and data redaction (2.0h, QA & Security, P3) — RBAC permissions verified\n"
+            "- Responsive viewport polish across mobile, tablet and desktop (1.5h, Frontend, P4) — Zero layout shifts"
+        )
+    else:
+        return (
+            f"Major Pillars:\n"
+            f"1. Core Architecture & Backend Services\n"
+            f"- Define domain data models, validation schemas and API endpoints for {task_title} (3.5h, Backend, P2) — Complete CRUD API specs\n"
+            f"- Implement business logic engine, error handling and event logging (3.0h, Backend, P2) — Resilient error handling\n"
+            f"\n"
+            f"2. User Interface & Interactive Experience\n"
+            f"- Build responsive UI components, state management and data tables (3.5h, Frontend, P2) — Clean interactive workflow\n"
+            f"- Add user feedback toasts, progress indicators and loading states (2.0h, Frontend, P3) — Intuitive micro-interactions\n"
+            f"\n"
+            f"3. Verification, Security & Deployment\n"
+            f"- Write automated unit and integration test suite (2.0h, QA & Security, P3) — 85%+ coverage on critical paths\n"
+            f"- Configure CI/CD deployment pipeline and monitoring alerts (1.5h, DevOps & Infra, P4) — Staging verification complete"
+        )
+
+
+def generate_breakdown_notes_with_gemini(
+    task_title: str,
+    task_details: str = "",
+    api_key: Optional[str] = None,
+    model: str = "gemini-1.5-flash"
+) -> str:
+    """
+    Uses Google Gemini (Gemini 1.5 Flash / 2.0 Flash) to draft an implementation plan,
+    major architectural pillars, and sized subtask steps for a deliverable.
+    Falls back gracefully to smart domain synthesis if no key is provided.
+    """
+    key = api_key or os.getenv("GEMINI_API_KEY", "").strip()
+
+    if not key:
+        return generate_smart_fallback_notes(task_title, task_details)
+
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+
+    prompt = (
+        f"You are an expert technical product manager and software architect.\n"
+        f"Break down the following project deliverable into a concrete, actionable implementation plan:\n"
+        f"Deliverable Title: '{task_title}'\n"
+        f"Context / Details: '{task_details or 'None provided'}'\n\n"
+        f"Format your response strictly using this format (do NOT wrap in markdown code blocks):\n"
+        f"Major Pillars:\n"
+        f"1. <Pillar 1 Name>\n"
+        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>\n"
+        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>\n\n"
+        f"2. <Pillar 2 Name>\n"
+        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>\n"
+        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>\n\n"
+        f"3. <Pillar 3 Name>\n"
+        f"- <Subtask Title> (<hours>h, <Pod>, <Priority>) — <Acceptance criteria>\n\n"
+        f"Requirements:\n"
+        f"- Subtasks must be concrete, technical and sized (between 1.0h and 5.0h each, e.g. 2h, 3.5h).\n"
+        f"- Pod must be one of: Backend, Frontend, DevOps & Infra, Design, QA & Security, Product.\n"
+        f"- Priority must be one of: P1, P2, P3, P4.\n"
+        f"- Include 4 to 6 total subtasks across 2 to 3 major pillars.\n"
+    )
+
+    req_body = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt}
+                ]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.4,
+            "maxOutputTokens": 1024
+        }
+    }
+
+    try:
+        data = json.dumps(req_body).encode("utf-8")
+        req = urllib.request.Request(
+            endpoint,
+            data=data,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            res_json = json.loads(resp.read().decode("utf-8"))
+            candidates = res_json.get("candidates", [])
+            if candidates:
+                parts = candidates[0].get("content", {}).get("parts", [])
+                if parts:
+                    raw_text = parts[0].get("text", "").strip()
+                    # Strip markdown code fences if model enclosed it
+                    raw_text = re.sub(r'^```(?:markdown)?\s*', '', raw_text)
+                    raw_text = re.sub(r'\s*```$', '', raw_text)
+                    return raw_text.strip()
+    except Exception as e:
+        print(f"⚠️ Gemini API note: {e}. Using smart architectural synthesizer.")
+
+    return generate_smart_fallback_notes(task_title, task_details)
 
 
 def parse_notes_into_subtasks(

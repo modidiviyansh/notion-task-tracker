@@ -640,6 +640,47 @@ body {
   font-size: 0.75rem;
   border-radius: var(--radius-sm);
 }
+.gemini-key-box {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  animation: fadeIn 0.2s ease-in-out;
+}
+.gemini-key-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+.gemini-key-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #93C5FD;
+}
+.text-input-xs {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #F8FAFC;
+}
+.gemini-key-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #10B981;
+}
+.gemini-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.gemini-hint a {
+  color: var(--color-blue);
+  text-decoration: underline;
+}
 .textarea-notes {
   width: 100%;
   box-sizing: border-box;

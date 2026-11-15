@@ -10,6 +10,7 @@
 // Notion Master Tasks Database ID
 const NOTION_DATABASE_ID = "3fff1bcff9b881be9e4fd3df8f014a52";
 
+
 // ============================================================================
 // 1. WEB APP INTAKE FORM (doGet)
 // ============================================================================
@@ -150,10 +151,13 @@ function createTaskFromWeb(data) {
   if (data.estimatedHours) {
     properties["Estimated Hours"] = { number: parseFloat(data.estimatedHours) };
   }
+  let assigneeWarning = null;
   if (data.assignee && data.assignee !== "Unassigned") {
-    const userId = findNotionUserIdByName(notionToken, data.assignee);
-    if (userId) {
-      properties["Assignee"] = { people: [{ id: userId }] };
+    const lookup = findNotionUserIdByName(notionToken, data.assignee);
+    if (lookup.id) {
+      properties["Assignee"] = { people: [{ id: lookup.id }] };
+    } else {
+      assigneeWarning = lookup.warning;
     }
   }
 
@@ -180,34 +184,93 @@ function createTaskFromWeb(data) {
   }
 
   triggerDashboardRebuild();
-  return { id: resData.id, url: resData.url || ("https://notion.so/" + resData.id.replace(/-/g, "")) };
+  const result = { id: resData.id, url: resData.url || ("https://notion.so/" + resData.id.replace(/-/g, "")) };
+  if (assigneeWarning) result.assignee_warning = assigneeWarning;
+  return result;
 }
 
 /**
- * Resolves a Notion workspace member's user ID from their display name
- * (case-insensitive). Returns null if no match, so the task is still created.
+ * Resolves a Notion user ID for an assignee name. Returns { id } or { id: null, warning }.
+ * The task is still created when no match is found; the warning explains why.
+ *
+ * Lookup order:
+ *   1. Script Property ASSIGNEE_IDS — JSON map of dashboard name → Notion user ID,
+ *      e.g. {"karanveer":"<uuid>","Diviyansh Modi":"<uuid>"}. Works without any
+ *      extra integration capability.
+ *   2. Notion users API (needs the integration's "Read user information" capability).
+ *      Matches exact name first, then a name that starts with / contains the input.
+ *   3. People already assigned to tasks in the database (same capability needed for names).
  */
 function findNotionUserIdByName(notionToken, name) {
+  const target = normalizeName(name);
+
   try {
-    const target = String(name).trim().toLowerCase();
+    const mapRaw = PropertiesService.getScriptProperties().getProperty("ASSIGNEE_IDS");
+    if (mapRaw) {
+      const map = JSON.parse(mapRaw);
+      const key = Object.keys(map).find(k => normalizeName(k) === target);
+      if (key) return { id: map[key] };
+    }
+  } catch (e) {
+    console.warn("ASSIGNEE_IDS is not valid JSON: " + e);
+  }
+
+  const candidates = {};
+  let apiError = null;
+
+  try {
     let cursor = null;
     do {
       const url = "https://api.notion.com/v1/users?page_size=100" + (cursor ? "&start_cursor=" + cursor : "");
-      const resp = UrlFetchApp.fetch(url, {
-        method: "get",
-        headers: { "Authorization": "Bearer " + notionToken, "Notion-Version": "2022-06-28" },
-        muteHttpExceptions: true
-      });
-      if (resp.getResponseCode() >= 400) return null;
+      const resp = UrlFetchApp.fetch(url, { method: "get", headers: notionHeaders(notionToken), muteHttpExceptions: true });
       const body = JSON.parse(resp.getContentText());
-      const match = (body.results || []).find(u => u.type === "person" && (u.name || "").trim().toLowerCase() === target);
-      if (match) return match.id;
+      if (resp.getResponseCode() >= 400) {
+        apiError = "Notion users API " + resp.getResponseCode() + ": " + (body.message || body.code || "error");
+        break;
+      }
+      (body.results || []).forEach(u => { if (u.type === "person" && u.name) candidates[u.name] = u.id; });
       cursor = body.has_more ? body.next_cursor : null;
     } while (cursor);
   } catch (e) {
-    console.warn("Assignee lookup failed: " + e);
+    apiError = "Notion users API failed: " + e;
   }
-  return null;
+
+  // Also learn from people already assigned to tasks (covers guests not listed by /users)
+  try {
+    const resp = UrlFetchApp.fetch("https://api.notion.com/v1/databases/" + NOTION_DATABASE_ID + "/query", {
+      method: "post",
+      contentType: "application/json",
+      headers: notionHeaders(notionToken),
+      payload: JSON.stringify({ page_size: 100, filter: { property: "Assignee", people: { is_not_empty: true } } }),
+      muteHttpExceptions: true
+    });
+    if (resp.getResponseCode() < 400) {
+      (JSON.parse(resp.getContentText()).results || []).forEach(pg => {
+        const people = (pg.properties && pg.properties["Assignee"] && pg.properties["Assignee"].people) || [];
+        people.forEach(p => { if (p.name) candidates[p.name] = p.id; });
+      });
+    }
+  } catch (e) {
+    console.warn("Assignee lookup via tasks failed: " + e);
+  }
+
+  const names = Object.keys(candidates);
+  const exact = names.find(n => normalizeName(n) === target);
+  const partial = exact || names.find(n => normalizeName(n).startsWith(target)) || names.find(n => normalizeName(n).indexOf(target) !== -1);
+  if (partial) return { id: candidates[partial] };
+
+  let warning = "Assignee \"" + name + "\" not found in Notion, so it was left empty.";
+  if (apiError) warning += " " + apiError + " (enable \"Read user information including email addresses\" on the Notion integration, or set the ASSIGNEE_IDS Script Property).";
+  else warning += " Known names: " + (names.length ? names.join(", ") : "none") + ".";
+  return { id: null, warning: warning };
+}
+
+function normalizeName(n) {
+  return String(n || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function notionHeaders(notionToken) {
+  return { "Authorization": "Bearer " + notionToken, "Notion-Version": "2022-06-28" };
 }
 
 /**
@@ -486,7 +549,7 @@ function doPost(e) {
     if (postData.action === "create_task") {
       try {
         const result = createTaskFromWeb(postData.task || {});
-        return jsonResponse({ status: "success", id: result.id, url: result.url });
+        return jsonResponse({ status: "success", id: result.id, url: result.url, assignee_warning: result.assignee_warning || null });
       } catch (err) {
         return jsonResponse({ status: "error", message: err.message || String(err) });
       }

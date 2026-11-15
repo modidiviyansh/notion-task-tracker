@@ -494,7 +494,8 @@ function setupEventListeners() {
         updateUI();
         closeModal();
         taskForm.reset();
-        alert(`🎉 Deliverable "${title}" created in Notion!\nPriority: ${priority} • Owner: ${assignee}`);
+        alert(`🎉 Deliverable "${title}" created in Notion!\nPriority: ${priority} • Owner: ${assignee}` +
+          (result.assignee_warning ? `\n\n⚠️ ${result.assignee_warning}` : ''));
       } catch (err) {
         console.error('Task creation failed:', err);
         alert(`⚠️ Task was NOT saved to Notion.\n\n${err.message}`);

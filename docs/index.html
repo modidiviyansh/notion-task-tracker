@@ -238,22 +238,22 @@
         <!-- Studio Sync & API Keys Drawer -->
         <div id="decomp-config-box" class="decomp-config-drawer" style="display:none;">
           <div class="config-drawer-header">
-            <span class="config-drawer-title">⚙️ Decomposition Studio & Notion Direct Sync Settings</span>
-            <span class="config-drawer-subtitle">Credentials are stored locally in your browser's <code>localStorage</code></span>
+            <span class="config-drawer-title">⚙️ Decomposition Studio & Notion Sync Settings</span>
+            <span class="config-drawer-subtitle">Settings are stored locally in your browser's <code>localStorage</code></span>
           </div>
           <div class="config-drawer-grid">
             <div class="config-card">
               <div class="config-card-header">
-                <label for="notion-api-token-input" class="config-label">🔑 Notion Integration Token</label>
-                <span id="notion-token-status-pill" class="badge-status">Not Set</span>
+                <label for="sync-url-input" class="config-label">🔗 Notion Sync Endpoint (Apps Script URL)</label>
+                <span id="sync-url-status-pill" class="badge-status">Not Set</span>
               </div>
               <div class="config-card-body">
-                <input type="password" id="notion-api-token-input" class="text-input text-input-xs" placeholder="Paste Notion Token (secret_...)">
+                <input type="url" id="sync-url-input" class="text-input text-input-xs" placeholder="https://script.google.com/macros/s/.../exec">
                 <div class="config-card-actions">
-                  <button type="button" class="btn btn-primary btn-xs" id="btn-save-notion-token">Save Token</button>
-                  <button type="button" class="btn btn-outline btn-xs" id="btn-clear-notion-token">Remove</button>
+                  <button type="button" class="btn btn-primary btn-xs" id="btn-save-sync-url">Save URL</button>
+                  <button type="button" class="btn btn-outline btn-xs" id="btn-clear-sync-url">Remove</button>
                 </div>
-                <span class="field-hint">Enables 1-click direct subtask creation into Notion database with zero middleman servers.</span>
+                <span class="field-hint">Your deployed WASP Apps Script Web App. It holds the Notion token server-side; no secret is stored in this page.</span>
               </div>
             </div>
             <div class="config-card">

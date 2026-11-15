@@ -54,13 +54,106 @@ async function loadDashboardData() {
       dashboardData = await res.json();
       console.log('Loaded live data.json');
     } else {
-      dashboardData = FALLBACK_DATA;
+      dashboardData = JSON.parse(JSON.stringify(FALLBACK_DATA));
     }
   } catch (e) {
     console.warn('Using fallback data:', e);
-    dashboardData = FALLBACK_DATA;
+    dashboardData = JSON.parse(JSON.stringify(FALLBACK_DATA));
   }
+  mergePendingTasks();
   updateUI();
+}
+
+// ============================================================================
+// Notion Sync Endpoint (Google Apps Script Web App proxy)
+// ============================================================================
+// Browsers cannot call api.notion.com directly (Notion sends no CORS headers),
+// and a Notion secret must never live in a public page. All writes therefore go
+// through the WASP Apps Script Web App (google_apps_script/Code.js → doPost),
+// which holds NOTION_TOKEN server-side in Script Properties.
+//
+// Paste your deployed Web App URL here so every visitor gets sync automatically,
+// or set it per-browser in the ⚙️ settings drawer of the Decomposition Studio.
+const DEFAULT_SYNC_URL = '';
+const SYNC_URL_KEY = 'wasp_sync_url';
+const PENDING_TASKS_KEY = 'wasp_pending_tasks';
+const PENDING_TASK_TTL_MS = 24 * 60 * 60 * 1000;
+
+// Remove any Notion secret saved by the old browser-direct sync path.
+try { localStorage.removeItem('notion_token'); } catch (e) { /* storage unavailable */ }
+
+function getSyncUrl() {
+  let saved = '';
+  try { saved = localStorage.getItem(SYNC_URL_KEY) || ''; } catch (e) { /* ignore */ }
+  return (saved || DEFAULT_SYNC_URL).trim();
+}
+
+async function postToSyncEndpoint(payload) {
+  const url = getSyncUrl();
+  if (!url) {
+    throw new Error('No Notion sync endpoint configured. Open ⚙️ Settings in the Decomposition Studio and paste your Apps Script Web App URL.');
+  }
+  // No Content-Type header → sent as text/plain, a CORS "simple request" that
+  // Apps Script accepts without a preflight. doPost parses the JSON body itself.
+  const resp = await fetch(url, { method: 'POST', body: JSON.stringify(payload), redirect: 'follow' });
+  const text = await resp.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    throw new Error(`Sync endpoint returned a non-JSON response (HTTP ${resp.status}). Check the Web App is deployed with access "Anyone".`);
+  }
+  if (!resp.ok || data.status !== 'success') {
+    throw new Error(data.message || data.text || `Sync endpoint HTTP ${resp.status}`);
+  }
+  return data;
+}
+
+// Tasks created from this browser are kept locally until the next data.json
+// export (GitHub Actions) contains them, so they survive a page refresh.
+function readPendingTasks() {
+  try {
+    return JSON.parse(localStorage.getItem(PENDING_TASKS_KEY) || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function writePendingTasks(list) {
+  try { localStorage.setItem(PENDING_TASKS_KEY, JSON.stringify(list)); } catch (e) { /* ignore */ }
+}
+
+function rememberPendingTasks(tasks) {
+  writePendingTasks(readPendingTasks().concat(tasks.map(t => ({ ...t, _created_at: Date.now() }))));
+}
+
+const normId = id => String(id || '').replace(/-/g, '').toLowerCase();
+
+function mergePendingTasks() {
+  if (!dashboardData) return;
+  if (!dashboardData.tasks) dashboardData.tasks = [];
+  const knownIds = new Set(dashboardData.tasks.map(t => normId(t.id)));
+  const knownTitles = new Set(dashboardData.tasks.map(t => (t.title || '').trim().toLowerCase()));
+  const now = Date.now();
+  // Subtasks carry a local id, so they are matched against the export by title.
+  const stillPending = readPendingTasks().filter(t =>
+    !knownIds.has(normId(t.id)) &&
+    !(String(t.id).startsWith('sub_') && knownTitles.has((t.title || '').trim().toLowerCase())) &&
+    now - (t._created_at || 0) < PENDING_TASK_TTL_MS);
+  writePendingTasks(stillPending);
+  stillPending.slice().reverse().forEach(addTaskLocally);
+}
+
+function addTaskLocally(task) {
+  dashboardData.tasks.unshift(task);
+  if (dashboardData.priority_counts && dashboardData.priority_counts[task.priority] !== undefined) {
+    dashboardData.priority_counts[task.priority]++;
+  }
+  if (dashboardData.status_counts) {
+    dashboardData.status_counts['To Do'] = (dashboardData.status_counts['To Do'] || 0) + 1;
+  }
+  dashboardData.total_tasks = (dashboardData.total_tasks || 0) + 1;
+  dashboardData.total_pending = (dashboardData.total_pending || 0) + 1;
 }
 
 function updateUI() {
@@ -360,7 +453,7 @@ function setupEventListeners() {
   }
 
   if (taskForm) {
-    taskForm.addEventListener('submit', (e) => {
+    taskForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const title = document.getElementById('modal-title').value.trim();
       const priority = document.getElementById('modal-priority').value;
@@ -368,33 +461,49 @@ function setupEventListeners() {
       const assignee = document.getElementById('modal-assignee').value;
       const dueDate = document.getElementById('modal-due').value;
       const notes = document.getElementById('modal-notes').value.trim();
+      const submitBtn = document.getElementById('btn-submit-task');
+      const submitHtml = submitBtn ? submitBtn.innerHTML : '';
 
-      const newTask = {
-        id: 'user_' + Date.now(),
-        title: title,
-        priority: priority,
-        status: 'To Do',
-        assignees: [assignee],
-        due_date: dueDate || 'Upcoming',
-        progress_bar: '■■□□□□□□□□ 20%',
-        estimated_hours: 3.0
-      };
-
-      if (!dashboardData.tasks) dashboardData.tasks = [];
-      dashboardData.tasks.unshift(newTask);
-      if (dashboardData.priority_counts && dashboardData.priority_counts[priority] !== undefined) {
-        dashboardData.priority_counts[priority]++;
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>⏳ Saving to Notion...</span>';
       }
-      if (dashboardData.status_counts) {
-        dashboardData.status_counts['To Do']++;
-      }
-      dashboardData.total_tasks++;
-      dashboardData.total_pending++;
 
-      updateUI();
-      closeModal();
-      taskForm.reset();
-      alert(`🎉 Deliverable "${title}" added to active queue!\nPriority: ${priority} • Owner: ${assignee}`);
+      try {
+        // Write to Notion first; only show the task once Notion has accepted it.
+        const result = await postToSyncEndpoint({
+          action: 'create_task',
+          task: { title, priority, complexity, assignee, dueDate, notes: notes || 'Raised via WASP Dashboard' }
+        });
+
+        const newTask = {
+          id: result.id,
+          url: result.url,
+          title: title,
+          priority: priority,
+          status: 'To Do',
+          assignees: [assignee],
+          due_date: dueDate || 'Upcoming',
+          progress_bar: '■■□□□□□□□□ 20%',
+          estimated_hours: 0,
+          complexity: complexity
+        };
+        addTaskLocally(newTask);
+        rememberPendingTasks([newTask]);
+
+        updateUI();
+        closeModal();
+        taskForm.reset();
+        alert(`🎉 Deliverable "${title}" created in Notion!\nPriority: ${priority} • Owner: ${assignee}`);
+      } catch (err) {
+        console.error('Task creation failed:', err);
+        alert(`⚠️ Task was NOT saved to Notion.\n\n${err.message}`);
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = submitHtml;
+        }
+      }
     });
   }
 }
@@ -418,10 +527,10 @@ function initDecompositionStudio() {
   const toggleConfigBtn = document.getElementById('btn-toggle-config');
   const configBox = document.getElementById('decomp-config-box');
 
-  const notionTokenInput = document.getElementById('notion-api-token-input');
-  const saveNotionBtn = document.getElementById('btn-save-notion-token');
-  const clearNotionBtn = document.getElementById('btn-clear-notion-token');
-  const notionStatusPill = document.getElementById('notion-token-status-pill');
+  const syncUrlInput = document.getElementById('sync-url-input');
+  const saveSyncBtn = document.getElementById('btn-save-sync-url');
+  const clearSyncBtn = document.getElementById('btn-clear-sync-url');
+  const syncStatusPill = document.getElementById('sync-url-status-pill');
 
   const geminiKeyInput = document.getElementById('gemini-api-key-input');
   const saveGeminiBtn = document.getElementById('btn-save-gemini-key');
@@ -430,18 +539,11 @@ function initDecompositionStudio() {
 
   // Load saved credentials
   function refreshCredsUI() {
-    const savedNotion = localStorage.getItem('notion_token');
-    if (savedNotion) {
-      if (notionTokenInput) notionTokenInput.value = savedNotion;
-      if (notionStatusPill) {
-        notionStatusPill.textContent = '🟢 Direct Sync Active';
-        notionStatusPill.className = 'badge-status status-done';
-      }
-    } else {
-      if (notionStatusPill) {
-        notionStatusPill.textContent = 'Not Set';
-        notionStatusPill.className = 'badge-status status-pending';
-      }
+    const syncUrl = getSyncUrl();
+    if (syncUrlInput) syncUrlInput.value = syncUrl;
+    if (syncStatusPill) {
+      syncStatusPill.textContent = syncUrl ? '🟢 Notion Sync Active' : 'Not Set';
+      syncStatusPill.className = 'badge-status ' + (syncUrl ? 'status-done' : 'status-pending');
     }
 
     const savedGemini = localStorage.getItem('gemini_api_key');
@@ -464,27 +566,26 @@ function initDecompositionStudio() {
   if (toggleConfigBtn && configBox) {
     toggleConfigBtn.addEventListener('click', () => {
       configBox.style.display = configBox.style.display === 'none' ? 'block' : 'none';
-      if (configBox.style.display === 'block' && notionTokenInput) notionTokenInput.focus();
+      if (configBox.style.display === 'block' && syncUrlInput) syncUrlInput.focus();
     });
   }
 
-  if (saveNotionBtn && notionTokenInput) {
-    saveNotionBtn.addEventListener('click', () => {
-      const val = notionTokenInput.value.trim();
-      if (!val) {
-        alert('Please enter your Notion Integration Token (starts with secret_).');
+  if (saveSyncBtn && syncUrlInput) {
+    saveSyncBtn.addEventListener('click', () => {
+      const val = syncUrlInput.value.trim();
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(val)) {
+        alert('Please paste your Apps Script Web App URL (https://script.google.com/macros/s/.../exec).');
         return;
       }
-      localStorage.setItem('notion_token', val);
+      localStorage.setItem(SYNC_URL_KEY, val);
       refreshCredsUI();
-      alert('✓ Notion Token saved! Direct sync is now active.');
+      alert('✓ Sync endpoint saved! New tasks and subtasks will now be written to Notion.');
     });
   }
 
-  if (clearNotionBtn) {
-    clearNotionBtn.addEventListener('click', () => {
-      localStorage.removeItem('notion_token');
-      if (notionTokenInput) notionTokenInput.value = '';
+  if (clearSyncBtn) {
+    clearSyncBtn.addEventListener('click', () => {
+      localStorage.removeItem(SYNC_URL_KEY);
       refreshCredsUI();
     });
   }
@@ -997,27 +1098,11 @@ async function commitSubtasksToNotion() {
     return;
   }
 
-  let notionToken = localStorage.getItem('notion_token');
-  if (!notionToken || !notionToken.trim()) {
-    const entered = prompt(
-      "🔑 Notion Integration Token Required:\n\n" +
-      "To create subtasks directly in your Notion database, please paste your Notion API token (starts with secret_):\n\n" +
-      "(This is saved securely in your browser's local storage so you never have to re-type it)"
-    );
-    if (entered && entered.trim()) {
-      notionToken = entered.trim();
-      localStorage.setItem('notion_token', notionToken);
-      const notionStatusPill = document.getElementById('notion-token-status-pill');
-      if (notionStatusPill) {
-        notionStatusPill.textContent = '🟢 Direct Sync Active';
-        notionStatusPill.className = 'badge-status status-done';
-      }
-    } else {
-      alert("⚠️ Direct Notion sync cancelled. You can also run the 1-click CLI command by clicking 'Copy CLI Command'.");
-      const configBox = document.getElementById('decomp-config-box');
-      if (configBox) configBox.style.display = 'block';
-      return;
-    }
+  if (!getSyncUrl()) {
+    alert("⚠️ Notion sync endpoint not configured.\n\nOpen ⚙️ Settings and paste your Apps Script Web App URL, or use 'Copy CLI Command'.");
+    const configBox = document.getElementById('decomp-config-box');
+    if (configBox) configBox.style.display = 'block';
+    return;
   }
 
   const commitBtn = document.getElementById('btn-commit-subtasks-notion');
@@ -1027,92 +1112,49 @@ async function commitSubtasksToNotion() {
     commitBtn.innerHTML = '<span>⏳ Connecting to Notion API...</span>';
   }
 
-  const cleanParentId = currentDecompPlan.parent_id.replace(/-/g, '');
   const total = currentDecompPlan.subtasks.length;
-  let successCount = 0;
 
   try {
-    for (let i = 0; i < total; i++) {
-      const st = currentDecompPlan.subtasks[i];
-      if (commitBtn) {
-        commitBtn.innerHTML = `<span>⏳ Creating ${i + 1}/${total}: ${escapeHtml(st.title.slice(0, 22))}...</span>`;
-      }
-
-      const pagePayload = {
-        parent: { database_id: NOTION_DATABASE_ID },
-        properties: {
-          "Task Name": { title: [{ text: { content: st.title } }] },
-          "Priority": { select: { name: st.priority } },
-          "Status": { status: { name: "To Do" } },
-          "Complexity": { select: { name: st.complexity } },
-          "Estimated Hours": { number: st.estimated_hours },
-          "Team / Pod": { select: { name: st.team } },
-          "Parent Task": { relation: [{ id: cleanParentId }] },
-          "Task Details": { rich_text: [{ text: { content: `🎯 [${st.pillar}] ${st.acceptance_criteria}` } }] }
-        },
-        icon: { type: "emoji", emoji: "🔹" }
-      };
-
-      const resp = await fetch("https://api.notion.com/v1/pages", {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + notionToken,
-          "Notion-Version": "2022-06-28",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(pagePayload)
-      });
-
-      if (!resp.ok) {
-        const errJson = await resp.json().catch(() => ({}));
-        throw new Error(errJson.message || `Notion HTTP ${resp.status}`);
-      }
-      successCount++;
-    }
-
-    // Update parent task Estimated Hours and Complexity
     if (commitBtn) {
-      commitBtn.innerHTML = `<span>⏳ Updating parent deliverable metrics...</span>`;
+      commitBtn.innerHTML = `<span>⏳ Creating ${total} subtasks in Notion...</span>`;
     }
 
-    await fetch(`https://api.notion.com/v1/pages/${cleanParentId}`, {
-      method: "PATCH",
-      headers: {
-        "Authorization": "Bearer " + notionToken,
-        "Notion-Version": "2022-06-28",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        properties: {
-          "Estimated Hours": { number: currentDecompPlan.total_hours },
-          "Complexity": { select: { name: currentDecompPlan.parent_complexity } }
-        }
-      })
-    }).catch(e => console.warn('Parent patch warning:', e));
+    const result = await postToSyncEndpoint({
+      action: 'create_subtasks',
+      parent_id: currentDecompPlan.parent_id,
+      parent_title: currentDecompPlan.parent_title,
+      subtasks: currentDecompPlan.subtasks.map(st => ({
+        title: st.title,
+        priority: st.priority,
+        complexity: st.complexity,
+        estimated_hours: st.estimated_hours,
+        team: st.team,
+        acceptance_criteria: `[${st.pillar}] ${st.acceptance_criteria}`
+      }))
+    });
+    const successCount = result.created_count || total;
 
     alert(`🎉 Success! Created ${successCount} subtasks directly in Notion linked to "${currentDecompPlan.parent_title}".`);
 
-    // Add created subtasks to local tasks array for instant UI update
-    currentDecompPlan.subtasks.forEach((st, idx) => {
-      dashboardData.tasks.unshift({
-        id: `sub_${Date.now()}_${idx}`,
-        title: st.title,
-        priority: st.priority,
-        status: 'To Do',
-        assignees: ['Unassigned'],
-        due_date: 'Sprint Horizon',
-        progress_bar: '■■□□□□□□□□ 20%',
-        estimated_hours: st.estimated_hours,
-        complexity: st.complexity
-      });
-      dashboardData.total_tasks++;
-      dashboardData.total_pending++;
-    });
+    // Show created subtasks immediately (persisted until the next data.json export)
+    const createdTasks = currentDecompPlan.subtasks.map((st, idx) => ({
+      id: `sub_${Date.now()}_${idx}`,
+      title: st.title,
+      priority: st.priority,
+      status: 'To Do',
+      assignees: ['Unassigned'],
+      due_date: 'Sprint Horizon',
+      progress_bar: '■■□□□□□□□□ 20%',
+      estimated_hours: st.estimated_hours,
+      complexity: st.complexity
+    }));
+    createdTasks.forEach(addTaskLocally);
+    rememberPendingTasks(createdTasks);
 
     updateUI();
   } catch (err) {
     console.error('Error committing subtasks:', err);
-    alert(`⚠️ Notion API error: ${err.message}\n\nPlease verify your Notion Integration Token has access to the database, or use the 1-click terminal command.`);
+    alert(`⚠️ Notion API error: ${err.message}\n\nCheck the Apps Script NOTION_TOKEN has access to the database, or use the 1-click terminal command.`);
   } finally {
     if (commitBtn) {
       commitBtn.disabled = false;

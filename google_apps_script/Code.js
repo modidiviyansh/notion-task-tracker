@@ -136,17 +136,30 @@ function createTaskFromWeb(data) {
     throw new Error("NOTION_TOKEN is not configured in Script Properties!");
   }
 
+  const properties = {
+    "Task Name": { title: [{ text: { content: data.title || "Untitled Task" } }] },
+    "Priority": { select: { name: data.priority || "P2 - High" } },
+    "Status": { status: { name: "To Do" } },
+    "Complexity": { select: { name: data.complexity || "⭐⭐⭐ 3 - Moderate" } },
+    "Due Date": { date: { start: data.dueDate || Utilities.formatDate(new Date(), "GMT+05:30", "yyyy-MM-dd") } },
+    "Task Details": { rich_text: [{ text: { content: data.notes || "Raised via Web Intake Form" } }] }
+  };
+  if (data.category) {
+    properties["Category"] = { select: { name: data.category } };
+  }
+  if (data.estimatedHours) {
+    properties["Estimated Hours"] = { number: parseFloat(data.estimatedHours) };
+  }
+  if (data.assignee && data.assignee !== "Unassigned") {
+    const userId = findNotionUserIdByName(notionToken, data.assignee);
+    if (userId) {
+      properties["Assignee"] = { people: [{ id: userId }] };
+    }
+  }
+
   const payload = {
     parent: { database_id: NOTION_DATABASE_ID },
-    properties: {
-      "Task Name": { title: [{ text: { content: data.title || "Untitled Task" } }] },
-      "Priority": { select: { name: data.priority || "P2 - High" } },
-      "Status": { status: { name: "To Do" } },
-      "Complexity": { select: { name: data.complexity || "⭐⭐⭐ 3 - Moderate" } },
-      "Category": { select: { name: data.category || "🛠️ Engineering & Tech" } },
-      "Due Date": { date: { start: data.dueDate || Utilities.formatDate(new Date(), "GMT+05:30", "yyyy-MM-dd") } },
-      "Task Details": { rich_text: [{ text: { content: data.notes || "Raised via Web Intake Form" } }] }
-    },
+    properties: properties,
     icon: { type: "emoji", emoji: "🎯" }
   };
 
@@ -166,7 +179,63 @@ function createTaskFromWeb(data) {
     throw new Error(resData.message || response.getContentText());
   }
 
-  return { url: resData.url || ("https://notion.so/" + resData.id.replace(/-/g, "")) };
+  triggerDashboardRebuild();
+  return { id: resData.id, url: resData.url || ("https://notion.so/" + resData.id.replace(/-/g, "")) };
+}
+
+/**
+ * Resolves a Notion workspace member's user ID from their display name
+ * (case-insensitive). Returns null if no match, so the task is still created.
+ */
+function findNotionUserIdByName(notionToken, name) {
+  try {
+    const target = String(name).trim().toLowerCase();
+    let cursor = null;
+    do {
+      const url = "https://api.notion.com/v1/users?page_size=100" + (cursor ? "&start_cursor=" + cursor : "");
+      const resp = UrlFetchApp.fetch(url, {
+        method: "get",
+        headers: { "Authorization": "Bearer " + notionToken, "Notion-Version": "2022-06-28" },
+        muteHttpExceptions: true
+      });
+      if (resp.getResponseCode() >= 400) return null;
+      const body = JSON.parse(resp.getContentText());
+      const match = (body.results || []).find(u => u.type === "person" && (u.name || "").trim().toLowerCase() === target);
+      if (match) return match.id;
+      cursor = body.has_more ? body.next_cursor : null;
+    } while (cursor);
+  } catch (e) {
+    console.warn("Assignee lookup failed: " + e);
+  }
+  return null;
+}
+
+/**
+ * Optional: asks GitHub Actions to re-export docs/data.json so the Pages
+ * dashboard picks up new tasks without waiting for the 6-hour cron.
+ * Needs Script Properties GITHUB_TOKEN (fine-grained, "Contents: write" on the repo)
+ * and GITHUB_REPO (e.g. "owner/notion-task-tracker"). Silently skipped if unset.
+ */
+function triggerDashboardRebuild() {
+  const props = PropertiesService.getScriptProperties();
+  const ghToken = props.getProperty("GITHUB_TOKEN");
+  const ghRepo = props.getProperty("GITHUB_REPO");
+  if (!ghToken || !ghRepo) return;
+  try {
+    UrlFetchApp.fetch("https://api.github.com/repos/" + ghRepo + "/dispatches", {
+      method: "post",
+      contentType: "application/json",
+      headers: { "Authorization": "Bearer " + ghToken, "Accept": "application/vnd.github+json" },
+      payload: JSON.stringify({ event_type: "notion-sync" }),
+      muteHttpExceptions: true
+    });
+  } catch (e) {
+    console.warn("Dashboard rebuild trigger failed: " + e);
+  }
+}
+
+function jsonResponse(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ============================================================================
@@ -412,7 +481,17 @@ function doPost(e) {
     }
     
     let responseObj = { text: "🐝 WASP Engine ready." };
-    
+
+    // Handle single task creation from the GitHub Pages dashboard intake modal
+    if (postData.action === "create_task") {
+      try {
+        const result = createTaskFromWeb(postData.task || {});
+        return jsonResponse({ status: "success", id: result.id, url: result.url });
+      } catch (err) {
+        return jsonResponse({ status: "error", message: err.message || String(err) });
+      }
+    }
+
     // Handle Subtask Decomposition API from GitHub Pages Dashboard
     if (postData.action === "decompose_task" || postData.action === "create_subtasks") {
       const parentId = postData.parent_id;
@@ -459,7 +538,15 @@ function doPost(e) {
           muteHttpExceptions: true
         };
         const resp = UrlFetchApp.fetch("https://api.notion.com/v1/pages", opt);
-        created.push(JSON.parse(resp.getContentText()));
+        const respBody = JSON.parse(resp.getContentText());
+        if (resp.getResponseCode() >= 400) {
+          return jsonResponse({
+            status: "error",
+            message: "Subtask \"" + st.title + "\" failed: " + (respBody.message || resp.getContentText()),
+            created_count: created.length
+          });
+        }
+        created.push(respBody);
       }
 
       // Update parent task hours & complexity
@@ -485,6 +572,8 @@ function doPost(e) {
         payload: JSON.stringify(parentUpdatePayload),
         muteHttpExceptions: true
       });
+
+      triggerDashboardRebuild();
 
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",

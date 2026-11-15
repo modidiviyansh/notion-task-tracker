@@ -74,7 +74,7 @@ async function loadDashboardData() {
 //
 // Paste your deployed Web App URL here so every visitor gets sync automatically,
 // or set it per-browser in the ⚙️ settings drawer of the Decomposition Studio.
-const DEFAULT_SYNC_URL = '';
+const DEFAULT_SYNC_URL = 'https://script.google.com/macros/s/AKfycbypiRNXo_Xhd6JSuMOH1oX9XwBQcqLd_tLM-Z-Z6IyU2i25JegDm4OTmtQvF-ja3ZYk_g/exec';
 const SYNC_URL_KEY = 'wasp_sync_url';
 const PENDING_TASKS_KEY = 'wasp_pending_tasks';
 const PENDING_TASK_TTL_MS = 24 * 60 * 60 * 1000;

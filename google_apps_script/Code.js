@@ -11,6 +11,7 @@
 const NOTION_DATABASE_ID = "3fff1bcff9b881be9e4fd3df8f014a52";
 
 
+const GoogleAccountId = "diviyanshmodi@gcmconventschool.in"
 // ============================================================================
 // 1. WEB APP INTAKE FORM (doGet)
 // ============================================================================
